@@ -344,13 +344,10 @@ interactive_menu() {
         RDP_PORT="$input_port"
     fi
 
-    # 5. 确认目标磁盘
-    echo -e "\n${BOLD}${WHITE}确认安装目标磁盘:${NC}"
-    read -rp "目标磁盘设备 [默认: ${TARGET_DISK}]: " input_disk
-    [ -n "$input_disk" ] && TARGET_DISK="$input_disk"
-
+    # 5. 自动选定目标主磁盘 (全自动化，无需人工干预)
+    log_info "已自动选定目标主硬盘: ${TARGET_DISK} (${DISK_SIZE})"
     if [ ! -b "$TARGET_DISK" ]; then
-        log_error "指定的磁盘设备 $TARGET_DISK 不存在！"
+        log_error "未找到有效的磁盘设备: $TARGET_DISK"
         exit 1
     fi
 }
@@ -406,20 +403,20 @@ execute_installation() {
     fi
     chmod +x "$local_script"
 
-    # 构建匹配官方镜像名称
+    # 构建匹配官方镜像名称 (Windows Server 必须包含 Edition，如 ServerDatacenter)
     local target_img_name=""
     case "$WIN_VERSION" in
         "2025")
-            target_img_name="Windows Server 2025"
+            target_img_name="Windows Server 2025 ServerDatacenter"
             ;;
         "2022")
-            target_img_name="Windows Server 2022"
+            target_img_name="Windows Server 2022 ServerDatacenter"
             ;;
         "2019")
-            target_img_name="Windows Server 2019"
+            target_img_name="Windows Server 2019 ServerDatacenter"
             ;;
         "2016")
-            target_img_name="Windows Server 2016"
+            target_img_name="Windows Server 2016 ServerDatacenter"
             ;;
         "11")
             target_img_name="Windows 11 Pro"
@@ -432,23 +429,23 @@ execute_installation() {
             ;;
     esac
 
-    # 组装完整的无人值守参数命令
+    # 组装完整的无人值守参数命令 (底层参数需空格分隔，禁止使用=号以防参数解析异常)
     local cmd_args=()
     cmd_args+=("windows")
 
     if [ "$WIN_VERSION" == "custom" ]; then
-        cmd_args+=("--iso=${CUSTOM_ISO_URL}")
+        cmd_args+=("--iso" "${CUSTOM_ISO_URL}")
     else
-        cmd_args+=("--image-name=${target_img_name}")
-        cmd_args+=("--lang=zh-cn")
+        cmd_args+=("--image-name" "${target_img_name}")
+        cmd_args+=("--lang" "zh-cn")
     fi
 
     # 用户名与密码注入
-    [ -n "$WIN_USER" ] && cmd_args+=("--username=${WIN_USER}")
-    [ -n "$WIN_PASS" ] && cmd_args+=("--password=${WIN_PASS}")
+    [ -n "$WIN_USER" ] && cmd_args+=("--username" "${WIN_USER}")
+    [ -n "$WIN_PASS" ] && cmd_args+=("--password" "${WIN_PASS}")
 
     # 远程桌面 RDP 端口与防火墙优化
-    cmd_args+=("--rdp-port=${RDP_PORT}")
+    cmd_args+=("--rdp-port" "${RDP_PORT}")
     [ "$ALLOW_PING" == "true" ] && cmd_args+=("--allow-ping")
 
     # 静态网络参数安全备份提示
@@ -472,6 +469,18 @@ execute_installation() {
 
     # 执行核心重装脚本
     bash "$local_script" "${cmd_args[@]}"
+    local ret=$?
+
+    if [ $ret -eq 0 ]; then
+        echo -e "\n${BOLD}${GREEN}================================================================${NC}"
+        echo -e "${BOLD}${GREEN}        安装环境与引导配置就绪！系统将在 5 秒后自动重启...        ${NC}"
+        echo -e "${BOLD}${GREEN}================================================================${NC}\n"
+        sleep 5
+        reboot
+    else
+        log_error "安装环境配置失败，请检查上方日志输出！"
+        exit $ret
+    fi
 }
 
 # ----------------- 命令行参数解析 -----------------
@@ -529,11 +538,8 @@ main() {
     install_dependencies
     detect_environment
 
-    # 若未指定密码或未传入 -y，进入交互式模式
-    if [ "$AUTO_CONFIRM" = false ] || [ -z "$WIN_PASS" ]; then
-        interactive_menu
-    else
-        # 静默模式下，若未指定密码则生成安全强密码
+    # 若传入 -y 则完全进入全自动静默模式；否则进入交互式菜单
+    if [ "$AUTO_CONFIRM" = true ]; then
         if [ -z "$WIN_PASS" ]; then
             WIN_PASS=$(generate_strong_password)
             log_info "未指定密码，已自动生成 Windows 合规强密码: ${WIN_PASS}"
@@ -541,6 +547,8 @@ main() {
             log_error "指定的密码不符合 Windows 密码复杂度策略！请使用包含大写字母、小写字母、数字和符号的强密码。"
             exit 1
         fi
+    else
+        interactive_menu
     fi
 
     confirm_execution
