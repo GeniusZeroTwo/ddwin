@@ -533,6 +533,11 @@ parse_arguments() {
 
 # ----------------- 脚本主入口 -----------------
 main() {
+    # 若通过管道执行 (如 curl ... | bash)，重定向标准输入至控制终端以保证交互正常
+    if [ ! -t 0 ] && [ -c /dev/tty ]; then
+        exec < /dev/tty
+    fi
+
     parse_arguments "$@"
     check_root
     install_dependencies
