@@ -22,14 +22,36 @@
 
 ---
 
+## ⚡ 一键执行指令 (无需克隆，直接在 VPS 上运行)
+
+### 🌍 海外 / 全球 VPS 服务器（推荐）
+```bash
+# 方式一：直接管道执行（自动进入交互式菜单向导）
+curl -sSL https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-win.sh | bash
+
+# 方式二：静默全自动无人值守安装 Windows Server 2022 并设置密码
+curl -sSL https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-win.sh | bash -s -- -v 2022 -p 'P@ssw0rd2022!' -y
+```
+
+### 🇨🇳 国内 VPS 服务器（国内 CDN / 反代加速）
+```bash
+# 交互式向导执行
+curl -sSL https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-win.sh | bash
+
+# 静默全自动无人值守安装
+curl -sSL https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-win.sh | bash -s -- -v 2022 -p 'P@ssw0rd2022!' -y
+```
+
+---
+
 ## 🚀 快速上手
 
 ### 1. 交互式运行 (新手推荐)
-登录你的 Linux 服务器（确保为 `root` 权限），执行以下命令：
+登录你的 Linux 服务器（确保为 `root` 权限），也可以下载后本地执行：
 
 ```bash
-# 赋予执行权限并启动交互式向导
-chmod +x dd-win.sh && bash dd-win.sh
+# 下载脚本并赋予执行权限
+curl -sSL -O https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-win.sh && chmod +x dd-win.sh && bash dd-win.sh
 ```
 
 向导将自动展示硬件概况，并支持可视化选择安装版本、自定义用户名、密码与远程桌面端口：
