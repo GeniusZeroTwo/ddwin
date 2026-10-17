@@ -1,14 +1,16 @@
 @echo off
 rem ==============================================================================
 rem Script Name: dd-debian.bat
-rem Description: Windows 一键重装/DD 至 Debian 12 (支持常规 VPS 及移动云电脑 Alpine 中转)
-rem Reference:   NodeSeek #69759 (移动云电脑DD Debian12 总结) & bin456789/reinstall
+rem Description: Windows 一键重装/DD 至 Debian (11/12/13) 与 Ubuntu (24.04/26.04)
+rem Reference:   NodeSeek #69759 (移动云电脑DD Linux 总结) & bin456789/reinstall
 rem Features:
 rem   1. 自动管理员权限提升 (UAC 智能弹窗)
 rem   2. 自动检测并一键关闭 Windows Defender 实时保护 (防误杀)
 rem   3. 智能国内外网络环境探测，境内自动启用国内高速加速源 (CNB/ghproxy)
-rem   4. 双模式支持: 
-rem      - 模式 A: Debian 12 极速直装 (适合普通 VPS / 阿里云 / 腾讯云 / 物理机)
+rem   4. 多系统与双模式支持:
+rem      - Debian 12 (稳定推荐) / Debian 13 (Trixie) / Debian 11 (Bullseye)
+rem      - Ubuntu 24.04 LTS (Noble) / Ubuntu 26.04 LTS (Resolute)
+rem      - 模式 A: 极速原版直装 (适合普通 VPS / 阿里云 / 腾讯云 / 物理机)
 rem      - 模式 B: 移动云电脑专用 Alpine 中转模式 (NodeSeek 69759 方案，极高容错，防断网)
 rem   5. 自定义 SSH 端口与 root 密码 (支持随机高强度密码生成)
 rem   6. 自动构建 C:\DD 规范工作区，防止路径空格与中文导致引导失败
@@ -28,7 +30,8 @@ if %errorlevel% neq 0 (
 
 :: ----------------- 初始化默认变量 -----------------
 set "TARGET_OS=debian"
-set "DEBIAN_VER=12"
+set "OS_VER=12"
+set "OS_DISPLAY=Debian 12"
 set "SSH_PORT=22"
 set "ROOT_PASS="
 set "INSTALL_MODE=direct"
@@ -48,8 +51,10 @@ cd /d "%WORK_DIR%"
 if "%~1"=="" goto after_parse_args
 if /i "%~1"=="-h" goto show_help
 if /i "%~1"=="--help" goto show_help
-if /i "%~1"=="-v" (set "DEBIAN_VER=%~2" & shift & shift & goto parse_args)
-if /i "%~1"=="--version" (set "DEBIAN_VER=%~2" & shift & shift & goto parse_args)
+if /i "%~1"=="-o" (set "TARGET_OS=%~2" & shift & shift & goto parse_args)
+if /i "%~1"=="--os" (set "TARGET_OS=%~2" & shift & shift & goto parse_args)
+if /i "%~1"=="-v" (set "OS_VER=%~2" & shift & shift & goto parse_args)
+if /i "%~1"=="--version" (set "OS_VER=%~2" & shift & shift & goto parse_args)
 if /i "%~1"=="-p" (set "ROOT_PASS=%~2" & shift & shift & goto parse_args)
 if /i "%~1"=="--password" (set "ROOT_PASS=%~2" & shift & shift & goto parse_args)
 if /i "%~1"=="-P" (set "SSH_PORT=%~2" & shift & shift & goto parse_args)
@@ -66,14 +71,17 @@ goto parse_args
 :show_help
 cls
 echo ================================================================
-echo        Windows 一键重装/DD 到 Debian 12 脚本使用说明
+echo        Windows 一键重装/DD 到 Debian / Ubuntu 脚本使用说明
 echo ================================================================
 echo.
 echo 用法:
 echo   dd-debian.bat [选项]
 echo.
 echo 选项说明:
-echo   -v, --version ^<版本^>       Debian 版本 (可选: 12, 11, 10, 默认: 12)
+echo   -o, --os ^<系统^>           目标操作系统 (可选: debian, ubuntu, 默认: debian)
+echo   -v, --version ^<版本^>       系统版本:
+echo                                Debian: 12 (默认), 13 (Trixie), 11 (Bullseye)
+echo                                Ubuntu: 24.04 (或 24), 26.04 (或 26), 22.04
 echo   -p, --password ^<密码^>      Linux root 登录密码 (留空则随机生成)
 echo   -P, --port ^<端口^>          SSH 服务连接端口 (默认: 22)
 echo   -m, --mode ^<模式^>          安装模式: direct (原版直装) 或 alpine (移动云电脑中转)
@@ -85,15 +93,51 @@ echo 示例:
 echo   # 交互式向导运行 (新手推荐):
 echo   dd-debian.bat
 echo.
-echo   # 极速一键重装为 Debian 12 并指定密码:
-echo   dd-debian.bat -v 12 -p "MyDebianPass#2026" -y
+echo   # 极速一键重装为 Debian 13 并指定密码:
+echo   dd-debian.bat -v 13 -p "MyDebian13Pass#2026" -y
 echo.
-echo   # 移动云电脑中转模式 (NodeSeek 69759 推荐):
-echo   dd-debian.bat -m alpine -y
+echo   # 极速一键重装为 Ubuntu 24.04 LTS:
+echo   dd-debian.bat -o ubuntu -v 24 -p "MyUbuntuPass#2026" -y
+echo.
+echo   # 极速一键重装为 Ubuntu 26.04 LTS:
+echo   dd-debian.bat -o ubuntu -v 26 -p "MyUbuntuPass#2026" -y
+echo.
+echo   # 移动云电脑中转模式 (转入 Debian 13):
+echo   dd-debian.bat -m alpine -v 13 -y
 echo ================================================================
 exit /b 0
 
 :after_parse_args
+
+:: ----------------- 版本与操作系统智能自适应 -----------------
+:: 如果版本号匹配 Ubuntu 特征且未显式指定 OS，自动切换为 ubuntu
+if "!OS_VER!"=="24" set "TARGET_OS=ubuntu"
+if "!OS_VER!"=="24.04" set "TARGET_OS=ubuntu"
+if "!OS_VER!"=="26" set "TARGET_OS=ubuntu"
+if "!OS_VER!"=="26.04" set "TARGET_OS=ubuntu"
+if "!OS_VER!"=="22" set "TARGET_OS=ubuntu"
+if "!OS_VER!"=="22.04" set "TARGET_OS=ubuntu"
+
+:: 规范化系统与版本
+if /i "!TARGET_OS!"=="ubuntu" (
+    set "TARGET_OS=ubuntu"
+    if "!OS_VER!"=="24" set "OS_VER=24.04"
+    if "!OS_VER!"=="26" set "OS_VER=26.04"
+    if "!OS_VER!"=="22" set "OS_VER=22.04"
+    if "!OS_VER!"=="" set "OS_VER=24.04"
+    if "!OS_VER!"=="12" set "OS_VER=24.04"
+    set "OS_DISPLAY=Ubuntu !OS_VER! LTS"
+) else (
+    set "TARGET_OS=debian"
+    if "!OS_VER!"=="" set "OS_VER=12"
+    if "!OS_VER!"=="13" (
+        set "OS_DISPLAY=Debian 13 (Trixie)"
+    ) else if "!OS_VER!"=="11" (
+        set "OS_DISPLAY=Debian 11 (Bullseye)"
+    ) else (
+        set "OS_DISPLAY=Debian !OS_VER!"
+    )
+)
 
 :: ----------------- 检测国内网络环境 -----------------
 echo [1/5] 正在检测当前网络环境与连接质量...
@@ -108,7 +152,13 @@ if %errorlevel% equ 0 (
 
 :: ----------------- 自动生成密码函数 -----------------
 if "%ROOT_PASS%"=="" (
-    for /f "delims=" %%a in ('powershell -NoProfile -Command "$chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$'; -join ((1..10) | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })"') do set "RANDOM_PASS=Debian#%%a"
+    for /f "delims=" %%a in ('powershell -NoProfile -Command "$chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$'; -join ((1..10) | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })"') do (
+        if "!TARGET_OS!"=="ubuntu" (
+            set "RANDOM_PASS=Ubuntu#%%a"
+        ) else (
+            set "RANDOM_PASS=Debian#%%a"
+        )
+    )
     if "%AUTO_CONFIRM%"=="true" (
         set "ROOT_PASS=!RANDOM_PASS!"
     )
@@ -119,7 +169,7 @@ if "%AUTO_CONFIRM%"=="true" goto skip_interactive
 
 cls
 echo ================================================================
-echo       Windows 一键重装/DD 到 Debian 12 安装配置向导
+echo    Windows 一键重装/DD 到 Linux 安装配置向导 (Debian / Ubuntu)
 echo    (基于 NodeSeek #69759 移动云电脑总结与 bin456789 核心)
 echo ================================================================
 echo  工作目录: %WORK_DIR%
@@ -136,22 +186,69 @@ if /i "!disable_def!"=="Y" (
 
 echo.
 echo ----------------------------------------------------------------
-echo [第 2 步: 安装模式选择]
-echo   1) Debian 12 极速原版直装 (推荐: 常规 VPS / 阿里云 / 腾讯云 / 物理机)
-echo   2) 移动云电脑稳妥中转模式 (推荐: 移动云电脑/天翼云/特殊虚拟网卡)
-echo      * 遵循 NodeSeek #69759 教程: Windows -^> Alpine 内存系统 -^> Debian 12
-echo      * 避开移动云电脑直装可能断网/卡驱动的坑，100%% 成功率！
-echo   3) Debian 11 稳定版直装
+echo [第 2 步: 目标系统与重装模式选择]
 echo.
-set /p mode_choice="请选择安装模式 [默认: 1]: "
+echo   【Debian 官方极速直装 (推荐: 常规 VPS / 阿里云 / 腾讯云 / 物理机)】
+echo     1) Debian 12 (Bookworm - 官方推荐稳定版) [默认]
+echo     2) Debian 13 (Trixie - 最新预发布版)
+echo     3) Debian 11 (Bullseye - 经典旧稳定版)
+echo.
+echo   【Ubuntu 官方极速直装 (推荐: 常规 VPS / 阿里云 / 腾讯云 / 物理机)】
+echo     4) Ubuntu 24.04 LTS (Noble Numbat - 长期支持版)
+echo     5) Ubuntu 26.04 LTS (Resolute - 最新长期支持版)
+echo.
+echo   【移动云电脑稳妥中转模式 (NodeSeek #69759 推荐方案，100%% 成功率)】
+echo     6) Alpine 中转 -^> Debian 12 (移动云电脑推荐首选)
+echo     7) Alpine 中转 -^> Debian 13 (Trixie)
+echo     8) Alpine 中转 -^> Ubuntu 24.04 LTS
+echo     9) Alpine 中转 -^> Ubuntu 26.04 LTS
+echo.
+set /p mode_choice="请选择安装模式与目标系统 [默认: 1]: "
 if "!mode_choice!"=="2" (
-    set "INSTALL_MODE=alpine"
+    set "INSTALL_MODE=direct"
+    set "TARGET_OS=debian"
+    set "OS_VER=13"
+    set "OS_DISPLAY=Debian 13 (Trixie)"
 ) else if "!mode_choice!"=="3" (
     set "INSTALL_MODE=direct"
-    set "DEBIAN_VER=11"
+    set "TARGET_OS=debian"
+    set "OS_VER=11"
+    set "OS_DISPLAY=Debian 11 (Bullseye)"
+) else if "!mode_choice!"=="4" (
+    set "INSTALL_MODE=direct"
+    set "TARGET_OS=ubuntu"
+    set "OS_VER=24.04"
+    set "OS_DISPLAY=Ubuntu 24.04 LTS"
+) else if "!mode_choice!"=="5" (
+    set "INSTALL_MODE=direct"
+    set "TARGET_OS=ubuntu"
+    set "OS_VER=26.04"
+    set "OS_DISPLAY=Ubuntu 26.04 LTS"
+) else if "!mode_choice!"=="6" (
+    set "INSTALL_MODE=alpine"
+    set "TARGET_OS=debian"
+    set "OS_VER=12"
+    set "OS_DISPLAY=Debian 12"
+) else if "!mode_choice!"=="7" (
+    set "INSTALL_MODE=alpine"
+    set "TARGET_OS=debian"
+    set "OS_VER=13"
+    set "OS_DISPLAY=Debian 13 (Trixie)"
+) else if "!mode_choice!"=="8" (
+    set "INSTALL_MODE=alpine"
+    set "TARGET_OS=ubuntu"
+    set "OS_VER=24.04"
+    set "OS_DISPLAY=Ubuntu 24.04 LTS"
+) else if "!mode_choice!"=="9" (
+    set "INSTALL_MODE=alpine"
+    set "TARGET_OS=ubuntu"
+    set "OS_VER=26.04"
+    set "OS_DISPLAY=Ubuntu 26.04 LTS"
 ) else (
     set "INSTALL_MODE=direct"
-    set "DEBIAN_VER=12"
+    set "TARGET_OS=debian"
+    set "OS_VER=12"
+    set "OS_DISPLAY=Debian 12"
 )
 
 echo.
@@ -178,18 +275,24 @@ if "!INSTALL_MODE!"=="alpine" (
 
 :skip_interactive
 
-if "%ROOT_PASS%"=="" set "ROOT_PASS=Debian@2026Secure!"
+if "%ROOT_PASS%"=="" (
+    if "!TARGET_OS!"=="ubuntu" (
+        set "ROOT_PASS=Ubuntu@2026Secure!"
+    ) else (
+        set "ROOT_PASS=Debian@2026Secure!"
+    )
+)
 
 :: ----------------- 确认配置界面 -----------------
 cls
 echo ================================================================
 echo                     高 危 操 作 确 认 提 示
 echo ================================================================
-echo  目标操作系统:   Debian %DEBIAN_VER% (64位 Linux)
+echo  目标操作系统:   !OS_DISPLAY! (64位 Linux)
 if "%INSTALL_MODE%"=="alpine" (
-echo  安装路线规划:   Windows -^> Alpine 3.18 中转 -^> Debian 12 (稳妥两段式)
+echo  安装路线规划:   Windows -^> Alpine 3.18 中转 -^> !OS_DISPLAY! (稳妥两段式)
 ) else (
-echo  安装路线规划:   Windows -^> Debian %DEBIAN_VER% 极速一步直装
+echo  安装路线规划:   Windows -^> !OS_DISPLAY! 极速一步直装
 )
 echo  SSH 登录账户:   root
 echo  SSH 登录密码:   %ROOT_PASS%
@@ -246,20 +349,21 @@ if "%INSTALL_MODE%"=="alpine" (
     :: 生成进入 Alpine 后的自动化转换脚本与指引文本
     (
         echo #!/bin/sh
-        echo # Alpine -^> Debian 12 自动化转换脚本 (NodeSeek #69759 实践方案)
+        echo # Alpine -^> !OS_DISPLAY! 自动化转换脚本 (NodeSeek #69759 实践方案)
         echo echo "=================================================="
-        echo echo "  正在准备 Debian 12 自动重装环境..."
+        echo echo "  正在准备 !OS_DISPLAY! 自动重装环境..."
         echo echo "=================================================="
         echo apk update
         echo apk add wget curl bash
-        echo echo "正在拉取 Debian 12 官方安装引擎..."
+        echo echo "正在拉取官方安装引擎..."
         echo wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' ^|^| wget --no-check-certificate -qO InstallNET.sh 'https://gitee.com/mb9e8j2/Tools/raw/master/Linux_reinstall/InstallNET.sh'
         echo chmod +x InstallNET.sh
-        echo echo "正在启动 Debian 12 安装 (root 密码: %ROOT_PASS%, 端口: %SSH_PORT%)..."
-        echo bash InstallNET.sh -debian %DEBIAN_VER% -pwd '%ROOT_PASS%' -port %SSH_PORT%
+        echo echo "正在启动 !OS_DISPLAY! 安装 (root 密码: %ROOT_PASS%, 端口: %SSH_PORT%)..."
+        echo bash InstallNET.sh -%TARGET_OS% %OS_VER% -pwd '%ROOT_PASS%' -port %SSH_PORT%
         echo echo "安装配置已下发，正在自动重启..."
         echo reboot
-    ) > "%WORK_DIR%\auto-debian.sh"
+    ) > "%WORK_DIR%\auto-linux.sh"
+    copy /y "%WORK_DIR%\auto-linux.sh" "%WORK_DIR%\auto-debian.sh" >nul 2>&1
 
     echo [INFO] 正在调用底层批处理生成 Grub/EFI 引导...
     call "%WORK_DIR%\reinstall.bat" alpine-3.18
@@ -273,11 +377,15 @@ if "%INSTALL_MODE%"=="alpine" (
     echo  1. 重启后，请在【移动云电脑官方客户端】内观察画面；
     echo  2. 稍等 1~2 分钟进入 Alpine 终端（屏幕显示: localhost login:）;
     echo  3. 登录用户名: root  ^|  默认登录密码: 123@@@
-    echo  4. 登录后只需粘贴执行以下单行命令（全自动转入 Debian 12）：
+    echo  4. 登录后只需粘贴执行以下单行命令（全自动转入 !OS_DISPLAY!）：
     echo.
-    echo     apk add wget curl bash ^&^& wget -qO- https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/alpine-to-debian.sh ^| bash -s -- -p "%ROOT_PASS%" -P %SSH_PORT%
+    if "%IS_CHINA%"=="true" (
+    echo     apk add wget curl bash ^&^& wget -qO- https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/alpine-to-debian.sh ^| bash -s -- -o %TARGET_OS% -v %OS_VER% -p "%ROOT_PASS%" -P %SSH_PORT%
+    ) else (
+    echo     apk add wget curl bash ^&^& wget -qO- https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/alpine-to-debian.sh ^| bash -s -- -o %TARGET_OS% -v %OS_VER% -p "%ROOT_PASS%" -P %SSH_PORT%
+    )
     echo.
-    echo  5. 系统将全自动完成 Debian 12 安装！
+    echo  5. 系统将全自动完成 !OS_DISPLAY! 安装！
     echo     * 最终 root 密码: %ROOT_PASS%
     echo     * 最终 SSH 端口:  %SSH_PORT%
     if not "%ZEROTIER_ID%"=="" (
@@ -291,16 +399,17 @@ if "%INSTALL_MODE%"=="alpine" (
     exit /b 0
 
 ) else (
-    echo [3/5] 正在配置 Debian %DEBIAN_VER% 极速直装引导...
+    echo [3/5] 正在配置 !OS_DISPLAY! 极速直装引导...
     echo [INFO] 注入 root 密码与 SSH 端口参数...
     
-    :: 调用 reinstall.bat 直装 debian
-    call "%WORK_DIR%\reinstall.bat" debian %DEBIAN_VER% --password "%ROOT_PASS%" --ssh-port %SSH_PORT%
+    :: 调用 reinstall.bat 直装对应系统与版本
+    call "%WORK_DIR%\reinstall.bat" %TARGET_OS% %OS_VER% --password "%ROOT_PASS%" --ssh-port %SSH_PORT%
     
     cls
     echo ================================================================
-    echo               Debian %DEBIAN_VER% 重装引导配置就绪！
+    echo               !OS_DISPLAY! 重装引导配置就绪！
     echo ================================================================
+    echo  目标系统:   !OS_DISPLAY!
     echo  SSH 登录账户: root
     echo  SSH 登录密码: %ROOT_PASS%
     echo  SSH 远程端口: %SSH_PORT%

@@ -1,13 +1,14 @@
 <#
 .SYNOPSIS
-    Windows 一键重装/DD 到 Debian 12 (PowerShell 引导器)
+    Windows 一键重装/DD 到 Debian / Ubuntu (PowerShell 引导器)
 .DESCRIPTION
-    自动以管理员权限下载并启动 dd-debian.bat 核心安装套件，支持移动云电脑 Alpine 中转与常规 VPS 直装。
+    自动以管理员权限下载并启动 dd-debian.bat 核心安装套件，支持 Debian (11/12/13) 与 Ubuntu (24.04/26.04)，兼具移动云电脑 Alpine 中转与常规 VPS 直装。
 #>
 
 [CmdletBinding()]
 param (
-    [string]$Version = "12",
+    [string]$OS = "",
+    [string]$Version = "",
     [string]$Password = "",
     [string]$Port = "22",
     [string]$Mode = "direct",
@@ -61,6 +62,7 @@ Write-Host "[2/3] 正在启动安装向导..." -ForegroundColor Green
 
 # 组装参数并调用批处理
 $cmdArgs = @()
+if ($OS) { $cmdArgs += "-o `"$OS`"" }
 if ($Version) { $cmdArgs += "-v `"$Version`"" }
 if ($Password) { $cmdArgs += "-p `"$Password`"" }
 if ($Port) { $cmdArgs += "-P `"$Port`"" }

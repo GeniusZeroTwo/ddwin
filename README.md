@@ -2,24 +2,27 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Shell](https://img.shields.io/badge/Script-Bash%20%2F%20Batch%20%2F%20PS-orange.svg)](#)
-[![Debian](https://img.shields.io/badge/OS-Debian%2012%20%7C%20Windows-red.svg)](#)
+[![OS](https://img.shields.io/badge/OS-Debian%2012%2F13%20%7C%20Ubuntu%2024%2F26%20%7C%20Windows-red.svg)](#)
 
 一个高度自动化、健壮且专为云服务器、VPS 以及各类云电脑（移动云电脑、天翼云电脑、轻量云等）定制的 **跨系统双向一键重装 / DD 工具箱**。
 
-* 🐧 **Windows 一键重装为 Debian 12** (`dd-debian.bat` / `alpine-to-debian.sh`)：深入整合 [NodeSeek #69759](https://www.nodeseek.com/post-69759-1) 移动云电脑实战经验，支持 **Alpine 内存微系统跳板中转** 与 **原版极速直装** 双模式，完美避开云电脑网络断连与卡驱动陷阱。
+* 🐧 **Windows 一键重装为 Linux** (`dd-debian.bat` / `alpine-to-debian.sh` / `dd-linux.bat`)：
+  - **支持系统**：**Debian 12 / 13 (Trixie) / 11** 与 **Ubuntu 24.04 LTS / 26.04 LTS**
+  - **支持模式**：**原版极速直装** 与 **移动云电脑 Alpine 内存微系统跳板中转** 双模式
+  - 深入整合 [NodeSeek #69759](https://www.nodeseek.com/post-69759-1) 移动云电脑实战经验，彻底避开云电脑特殊虚拟网卡断网与卡驱动陷阱。
 * 🪟 **Linux 一键重装为 Windows 官方原版** (`dd-win.sh`)：支持微软官方 MSDN Server 2025/2022/2019/2016 与 Win11/10，自动注入 RedHat VirtIO 驱动、全盘自动扩容与静态 IP 自愈。
 
 ---
 
 ## 📑 目录导航
 
-- [一、Windows 一键重装/DD 至 Debian 12 (重点推荐)](#一windows-一键重装dd-至-debian-12-重点推荐)
+- [一、Windows 一键重装/DD 至 Debian 12/13 与 Ubuntu 24/26 (重点推荐)](#一windows-一键重装dd-至-debian-1213-与-ubuntu-2426-重点推荐)
   - [⚡ 一键命令 (Windows CMD / PowerShell)](#-一键命令-windows-cmd--powershell)
   - [🌟 移动云电脑 (和家庭/天翼云) 核心痛点与 Alpine 中转方案](#-移动云电脑-和家庭天翼云-核心痛点与-alpine-中转方案)
-  - [📖 移动云电脑 DD Debian 12 实操全流程 (图文指南)](#-移动云电脑-dd-debian-12-实操全流程-图文指南)
+  - [📖 移动云电脑 DD Linux 实操全流程 (图文指南)](#-移动云电脑-dd-linux-实操全流程-图文指南)
   - [🌐 无公网 IP 连接方案 (ZeroTier 组网)](#-无公网-ip-连接方案-zerotier-组网)
   - [⚠️ 移动云电脑避坑与保活指南](#️-移动云电脑避坑与保活指南)
-  - [📋 Windows 脚本参数说明 (`dd-debian.bat`)](#-windows-脚本参数说明-dd-debianbat)
+  - [📋 Windows 脚本参数说明 (`dd-debian.bat` / `dd-linux.bat`)](#-windows-脚本参数说明-dd-debianbat--dd-linuxbat)
 - [二、Linux 一键重装/DD 至 Windows 官方原版](#二linux-一键重装dd-至-windows-官方原版)
   - [⚡ 一键命令 (Linux VPS)](#-一键命令-linux-vps)
   - [🌟 核心特性与深度优化](#-核心特性与深度优化)
@@ -31,7 +34,7 @@
 
 ---
 
-# 一、Windows 一键重装/DD 至 Debian 12 (重点推荐)
+# 一、Windows 一键重装/DD 至 Debian 12/13 与 Ubuntu 24/26 (重点推荐)
 
 适用于：**中国移动云电脑（和家庭/政企版）、中国电信天翼云电脑、阿里云/腾讯云 Windows 实例、各类海外 Windows VPS 及物理机**。
 
@@ -50,6 +53,8 @@ certutil -urlcache -f -split https://ghproxy.cc/https://raw.githubusercontent.co
 certutil -urlcache -f -split https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-debian.bat C:\DD\dd-debian.bat && C:\DD\dd-debian.bat
 ```
 
+> **提示**：脚本已全面支持新版本系统，交互式菜单中可自由选择 **Debian 12 / Debian 13 (Trixie) / Debian 11** 或 **Ubuntu 24.04 LTS / Ubuntu 26.04 LTS**。
+
 ---
 
 ### 🌟 移动云电脑 (和家庭/天翼云) 核心痛点与 Alpine 中转方案
@@ -57,7 +62,7 @@ certutil -urlcache -f -split https://raw.githubusercontent.com/GeniusZeroTwo/ddw
 > 参考 NodeSeek 社区深度总结：[《移动云电脑DD Debian12 总结》#69759](https://www.nodeseek.com/post-69759-1)
 
 #### 为什么直接在移动云电脑中 DD Linux 容易失败？
-1. **虚拟网卡驱动与网络架构特殊**：移动云电脑使用定制化虚拟化底座，直接从 Windows 写入 Debian 安装环境，重启后极易在网络配置/DHCP 获取阶段死机或失联。
+1. **虚拟网卡驱动与网络架构特殊**：移动云电脑使用定制化虚拟化底座，直接从 Windows 写入 Debian/Ubuntu 安装环境，重启后极易在网络配置/DHCP 获取阶段死机或失联。
 2. **缺乏独立公网 IPv4**：云电脑处于移动运营商大内网中，如果直接重装后未配置内网穿透工具，将直接无法通过 SSH 连入。
 3. **Windows Defender 拦截**：系统自带防护会拦截写入引导扇区的文件。
 
@@ -65,12 +70,12 @@ certutil -urlcache -f -split https://raw.githubusercontent.com/GeniusZeroTwo/ddw
 * **内存运行，极高容错**：Alpine Linux 是一个只有几十兆的纯内存系统（RAM disk），开机即可完全加载到内存中脱离对物理磁盘的依赖。
 * **分步确认，安全可视**：
   1. 先重启进入 Alpine 命令行界面（在移动云电脑官方客户端内可见终端画面）；
-  2. 在 Alpine 中使用纯净的 Linux 环境拉取 `InstallNET.sh` 或官方 Debian 12 网络安装包；
+  2. 在 Alpine 中使用纯净的 Linux 环境拉取官方网络安装包；
   3. 直接对物理硬盘重分区写入，成功率达 **100%**！
 
 ---
 
-### 📖 移动云电脑 DD Debian 12 实操全流程 (图文指南)
+### 📖 移动云电脑 DD Linux 实操全流程 (图文指南)
 
 #### 阶段 1：在 Windows 下准备并初次 DD 至 Alpine
 1. **关闭 Windows 安全中心**：
@@ -78,15 +83,15 @@ certutil -urlcache -f -split https://raw.githubusercontent.com/GeniusZeroTwo/ddw
    - 或者使用 PowerShell 命令一键禁用：`Set-MpPreference -DisableRealtimeMonitoring $true`
 2. **以管理员身份运行一键脚本**：
    - 打开 CMD 终端，运行上方提供的一键命令，脚本将自动在 `C:\DD` 目录下构建工作区。
-3. **选择安装模式**：
-   - 菜单提示中选择 **`2) 移动云电脑稳妥中转模式`**。
-   - 输入你计划设置的 Debian 12 root 密码及 SSH 端口（支持直接回车使用随机安全密码）。
+3. **选择安装模式与目标系统**：
+   - 菜单提示中选择对应的 Alpine 中转选项（如 `6) Alpine 中转 -> Debian 12`、`7) Alpine 中转 -> Debian 13`、`8) Alpine 中转 -> Ubuntu 24.04`、`9) Alpine 中转 -> Ubuntu 26.04`）。
+   - 输入你计划设置的 Linux root 密码及 SSH 端口（支持直接回车使用随机高强度密码）。
 4. **自动重启**：
    - 脚本自动拉取引导工具并写入 BCD 引导项，10 秒后自动重启。
 
 ---
 
-#### 阶段 2：在 Alpine 中一键转接 Debian 12
+#### 阶段 2：在 Alpine 中一键转接 Debian / Ubuntu
 1. **打开移动云电脑官方客户端**：
    - 重启后在手机或电脑的移动云电脑官方客户端内观察画面。
    - 约 1 ~ 2 分钟后，屏幕显示 Alpine 终端登录提示：
@@ -97,14 +102,28 @@ certutil -urlcache -f -split https://raw.githubusercontent.com/GeniusZeroTwo/ddw
    - 用户名输入：`root`
    - 密码输入：`123@@@`（密码输入时不显示，输完直接按回车）。
 3. **一键执行自动化转接脚本**：
-   在 Alpine 终端中直接粘贴并执行以下命令：
-   ```bash
-   apk add wget curl bash && wget -qO- https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/alpine-to-debian.sh | bash
-   ```
-   *(国内网络可使用加速镜像: `apk add wget curl bash && wget -qO- https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/alpine-to-debian.sh | bash`)*
+   在 Alpine 终端中直接粘贴并执行以下对应命令：
+
+   * **转接到 Debian 12 (稳定默认)**：
+     ```bash
+     apk add wget curl bash && wget -qO- https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/alpine-to-debian.sh | bash
+     ```
+   * **转接到 Debian 13 (Trixie)**：
+     ```bash
+     apk add wget curl bash && wget -qO- https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/alpine-to-debian.sh | bash -s -- -v 13
+     ```
+   * **转接到 Ubuntu 24.04 LTS**：
+     ```bash
+     apk add wget curl bash && wget -qO- https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/alpine-to-debian.sh | bash -s -- -o ubuntu -v 24
+     ```
+   * **转接到 Ubuntu 26.04 LTS**：
+     ```bash
+     apk add wget curl bash && wget -qO- https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/alpine-to-debian.sh | bash -s -- -o ubuntu -v 26
+     ```
+   *(国内网络可使用加速镜像: 将 URL 中的 `https://raw.githubusercontent.com/` 替换为 `https://ghproxy.cc/https://raw.githubusercontent.com/`)*
 
 4. **自动部署**：
-   脚本会自动拉取 `InstallNET.sh` 核心引擎，全自动完成 Debian 12 的分区与网络配置，并在完成后自动重启进入全新 Debian 12 系统！
+   脚本会自动拉取核心引擎，全自动完成磁盘分区与网络配置，并在完成后自动重启进入全新的 Linux 系统！
 
 ---
 
@@ -113,7 +132,7 @@ certutil -urlcache -f -split https://raw.githubusercontent.com/GeniusZeroTwo/ddw
 由于移动云电脑/家庭云通常位于 NAT 局域网内，无公网独立 IP，建议进入系统后通过 **ZeroTier** 虚拟局域网连入：
 
 1. 注册并登录 [ZeroTier 官网](https://www.zerotier.com/)，创建一个免费 Network 并获取 **16 位 Network ID**。
-2. 登录云电脑的 Debian 12 终端，安装 ZeroTier 并加入网络：
+2. 登录云电脑的 Linux 终端，安装 ZeroTier 并加入网络：
    ```bash
    curl -s https://install.zerotier.com | bash
    zerotier-cli join 你的16位NetworkID
@@ -133,7 +152,7 @@ certutil -urlcache -f -split https://raw.githubusercontent.com/GeniusZeroTwo/ddw
 
 1. **防闲置休眠 / 自动关机保活**：
    - 部分移动云电脑在长时间没有官方客户端连接时，机房会触发闲置休眠或关机。
-   - **保活方案**：在 Debian 12 下添加定时唤醒任务或小流量保活 Ping：
+   - **保活方案**：在 Linux 下添加定时唤醒任务或小流量保活 Ping：
      ```bash
      # 每 5 分钟向外发起一次轻微网络请求以保持网络活跃
      (crontab -l 2>/dev/null; echo "*/5 * * * * curl -s http://connect.rom.miui.com/generate_204 >/dev/null") | crontab -
@@ -144,26 +163,38 @@ certutil -urlcache -f -split https://raw.githubusercontent.com/GeniusZeroTwo/ddw
 
 ---
 
-### 📋 Windows 脚本参数说明 (`dd-debian.bat`)
+### 📋 Windows 脚本参数说明 (`dd-debian.bat` / `dd-linux.bat`)
 
 如果你需要在 Windows 下静默批量重装，可直接使用命令行参数：
 
 | 参数 | 说明 | 示例 | 默认值 |
 | :--- | :--- | :--- | :--- |
-| `-v` / `--version` | 指定 Debian 发行版版本 | `-v 12` 或 `-v 11` | `12` |
+| `-o` / `--os` | 指定目标操作系统 (`debian` 或 `ubuntu`) | `-o debian` 或 `-o ubuntu` | `debian` |
+| `-v` / `--version` | 指定系统版本 (Debian: 12, 13, 11 / Ubuntu: 24, 26, 22) | `-v 13` 或 `-v 24` 或 `-v 26` | Debian 默认为 `12`，Ubuntu 默认为 `24.04` |
 | `-p` / `--password` | 指定 root 登录密码 | `-p "MyStrongPass#123"` | 随机生成高强度密码 |
 | `-P` / `--port` | 指定 SSH 远程连接端口 | `-P 2222` | `22` |
 | `-m` / `--mode` | 安装模式 (`direct` 原版直装 / `alpine` 移动云电脑中转) | `-m alpine` | `direct` |
+| `-z` / `--zerotier` | 可选: 预设 ZeroTier 网络 ID | `-z "8bdXXXXXXXX"` | 无 |
 | `-y` / `--yes` | 静默无人值守模式 (跳过交互菜单直接启动) | `-y` | `false` |
 | `-h` / `--help` | 显示帮助信息 | `-h` | - |
 
 #### 自动化调用示例：
-```cmd
-# 针对移动云电脑：一键以静默模式配置 Alpine 中转并重启
-C:\DD\dd-debian.bat -m alpine -p "MyDebianPass#2026" -y
 
-# 针对常规 VPS：一键极速直装 Debian 12 并自定义 SSH 端口为 2222
-C:\DD\dd-debian.bat -v 12 -p "MyDebianPass#2026" -P 2222 -y
+```cmd
+# 极速直装全新 Debian 13 (Trixie)：
+C:\DD\dd-debian.bat -v 13 -p "MyDebianPass#2026" -y
+
+# 极速直装全新 Ubuntu 24.04 LTS (Noble Numbat)：
+C:\DD\dd-debian.bat -o ubuntu -v 24 -p "MyUbuntuPass#2026" -y
+
+# 极速直装全新 Ubuntu 26.04 LTS (Resolute)：
+C:\DD\dd-debian.bat -o ubuntu -v 26 -p "MyUbuntuPass#2026" -y
+
+# 移动云电脑 Alpine 中转模式 (转接 Debian 13)：
+C:\DD\dd-debian.bat -m alpine -v 13 -p "MyDebianPass#2026" -y
+
+# 移动云电脑 Alpine 中转模式 (转接 Ubuntu 24.04)：
+C:\DD\dd-debian.bat -m alpine -o ubuntu -v 24 -p "MyUbuntuPass#2026" -y
 ```
 
 ---
