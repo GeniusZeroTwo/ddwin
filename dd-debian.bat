@@ -4,9 +4,9 @@ rem Script Name: dd-debian.bat
 rem Description: Windows 一键重装/DD 至 Debian (11/12/13) 与 Ubuntu (24.04/26.04)
 rem Reference:   NodeSeek #69759 (移动云电脑DD Linux 总结) & bin456789/reinstall
 rem Features:
-rem   1. 自动管理员权限提升 (UAC 智能弹窗)
+rem   1. 自动管理员权限提升 (UAC 智能弹窗，/k 保活防闪退)
 rem   2. 自动检测并一键关闭 Windows Defender 实时保护 (防误杀)
-rem   3. 智能国内外网络环境探测，境内自动启用国内高速加速源 (CNB/ghproxy)
+rem   3. 智能国内外网络环境探测，境内自动启用国内高速加速源
 rem   4. 多系统与双模式支持:
 rem      - Debian 12 (稳定推荐) / Debian 13 (Trixie) / Debian 11 (Bullseye)
 rem      - Ubuntu 24.04 LTS (Noble) / Ubuntu 26.04 LTS (Resolute)
@@ -20,15 +20,23 @@ rem ============================================================================
 setlocal enabledelayedexpansion
 chcp 65001 >nul
 
-:: ----------------- 检查并提升管理员权限 -----------------
+rem ----------------- 检查并提升管理员权限 -----------------
 net session >nul 2>&1
 if %errorlevel% neq 0 (
     echo [提示] 正在请求系统管理员权限以配置底层引导...
-    powershell -Command "Start-Process cmd -ArgumentList '/c \"\"%~f0\" %*\"' -Verb RunAs"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process cmd -ArgumentList '/k \"\"%~f0\" %*\"' -Verb RunAs" 2>nul
+    if !errorlevel! neq 0 (
+        echo.
+        echo ================================================================
+        echo [错误] 自动申请管理员权限失败！
+        echo 请直接右键点击本批处理文件，选择【以管理员身份运行】！
+        echo ================================================================
+        pause
+    )
     exit /b
 )
 
-:: ----------------- 初始化默认变量 -----------------
+rem ----------------- 初始化默认变量 -----------------
 set "TARGET_OS=debian"
 set "OS_VER=12"
 set "OS_DISPLAY=Debian 12"
@@ -40,13 +48,13 @@ set "WORK_DIR=C:\DD"
 set "IS_CHINA=false"
 set "ZEROTIER_ID="
 
-:: ----------------- 创建规范工作目录 -----------------
+rem ----------------- 创建规范工作目录 -----------------
 if not exist "%WORK_DIR%" (
     mkdir "%WORK_DIR%" >nul 2>&1
 )
 cd /d "%WORK_DIR%"
 
-:: ----------------- 参数解析 -----------------
+rem ----------------- 参数解析 -----------------
 :parse_args
 if "%~1"=="" goto after_parse_args
 if /i "%~1"=="-h" goto show_help
@@ -99,18 +107,15 @@ echo.
 echo   # 极速一键重装为 Ubuntu 24.04 LTS:
 echo   dd-debian.bat -o ubuntu -v 24 -p "MyUbuntuPass#2026" -y
 echo.
-echo   # 极速一键重装为 Ubuntu 26.04 LTS:
-echo   dd-debian.bat -o ubuntu -v 26 -p "MyUbuntuPass#2026" -y
-echo.
 echo   # 移动云电脑中转模式 (转入 Debian 13):
 echo   dd-debian.bat -m alpine -v 13 -y
 echo ================================================================
+pause
 exit /b 0
 
 :after_parse_args
 
-:: ----------------- 版本与操作系统智能自适应 -----------------
-:: 如果版本号匹配 Ubuntu 特征且未显式指定 OS，自动切换为 ubuntu
+rem ----------------- 版本与操作系统智能自适应 -----------------
 if "!OS_VER!"=="24" set "TARGET_OS=ubuntu"
 if "!OS_VER!"=="24.04" set "TARGET_OS=ubuntu"
 if "!OS_VER!"=="26" set "TARGET_OS=ubuntu"
@@ -118,7 +123,7 @@ if "!OS_VER!"=="26.04" set "TARGET_OS=ubuntu"
 if "!OS_VER!"=="22" set "TARGET_OS=ubuntu"
 if "!OS_VER!"=="22.04" set "TARGET_OS=ubuntu"
 
-:: 规范化系统与版本
+rem 规范化系统与版本
 if /i "!TARGET_OS!"=="ubuntu" (
     set "TARGET_OS=ubuntu"
     if "!OS_VER!"=="24" set "OS_VER=24.04"
@@ -139,7 +144,7 @@ if /i "!TARGET_OS!"=="ubuntu" (
     )
 )
 
-:: ----------------- 检测国内网络环境 -----------------
+rem ----------------- 检测国内网络环境 -----------------
 echo [1/5] 正在检测当前网络环境与连接质量...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; try { $r = (Invoke-WebRequest -Uri 'https://cip.cc' -TimeoutSec 3 -UseBasicParsing).Content; if ($r -match '中国') { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
 if %errorlevel% equ 0 (
@@ -150,9 +155,9 @@ if %errorlevel% equ 0 (
     echo [INFO] 检测到当前服务器位于海外/全球节点，使用 GitHub 官方镜像源！
 )
 
-:: ----------------- 自动生成密码函数 -----------------
+rem ----------------- 自动生成密码函数 -----------------
 if "%ROOT_PASS%"=="" (
-    for /f "delims=" %%a in ('powershell -NoProfile -Command "$chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$'; -join ((1..10) | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })"') do (
+    for /f "delims=" %%a in ('powershell -NoProfile -Command "$chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789@#'; -join ((1..10) | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })"') do (
         if "!TARGET_OS!"=="ubuntu" (
             set "RANDOM_PASS=Ubuntu#%%a"
         ) else (
@@ -164,7 +169,7 @@ if "%ROOT_PASS%"=="" (
     )
 )
 
-:: ----------------- 交互菜单 -----------------
+rem ----------------- 交互菜单 -----------------
 if "%AUTO_CONFIRM%"=="true" goto skip_interactive
 
 cls
@@ -283,7 +288,7 @@ if "%ROOT_PASS%"=="" (
     )
 )
 
-:: ----------------- 确认配置界面 -----------------
+rem ----------------- 确认配置界面 -----------------
 cls
 echo ================================================================
 echo                     高 危 操 作 确 认 提 示
@@ -312,11 +317,12 @@ if "%AUTO_CONFIRM%"=="false" (
     set /p confirm="输入 Y 确认执行，按其他键退出: "
     if /i not "!confirm!"=="Y" (
         echo [INFO] 用户取消操作，退出脚本。
+        pause
         exit /b 0
     )
 )
 
-:: ----------------- 下载核心重装引擎 -----------------
+rem ----------------- 下载核心重装引擎 -----------------
 echo.
 echo [2/5] 正在拉取底层引导与重装核心 (reinstall.bat)...
 set "REINSTALL_URL=https://raw.githubusercontent.com/bin456789/reinstall/main/reinstall.bat"
@@ -327,7 +333,6 @@ set "REINSTALL_PROXY=https://ghproxy.cc/https://raw.githubusercontent.com/bin456
 
 del /f /q "%WORK_DIR%\reinstall.bat" >nul 2>&1
 
-:: 优先使用 curl -k (跳过证书失效问题)
 where curl >nul 2>&1
 if %errorlevel% equ 0 (
     curl -k -s -L -f -o "%WORK_DIR%\reinstall.bat" "%REINSTALL_URL%" >nul 2>&1
@@ -336,48 +341,49 @@ if %errorlevel% equ 0 (
     )
 )
 
-:: 次选 certutil
 if not exist "%WORK_DIR%\reinstall.bat" (
     certutil -urlcache -f -split "%REINSTALL_URL%" "%WORK_DIR%\reinstall.bat" >nul 2>&1
 )
 
-:: 兜底使用 PowerShell (带 TLS 1.2 与跳过 SSL 证书强校验)
 if not exist "%WORK_DIR%\reinstall.bat" (
     echo [WARN] 正在启用 PowerShell 安全通道拉取组件...
     powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}; try { (New-Object System.Net.WebClient).DownloadFile('%REINSTALL_URL%', '%WORK_DIR%\reinstall.bat') } catch { (New-Object System.Net.WebClient).DownloadFile('%REINSTALL_PROXY%', '%WORK_DIR%\reinstall.bat') }" >nul 2>&1
 )
 
 if not exist "%WORK_DIR%\reinstall.bat" (
-    echo [ERROR] 下载 reinstall.bat 失败！请检查当前网络连接或是否被安全软件拦截。
+    echo.
+    echo ================================================================
+    echo [ERROR] 下载 reinstall.bat 失败！
+    echo 请检查当前网络连接，或尝试关闭安全软件后再试。
+    echo ================================================================
     pause
     exit /b 1
 )
 
 echo [INFO] 引导引擎组件下载就绪。
 
-:: ----------------- 模式分流执行 -----------------
+rem ----------------- 模式分流执行 -----------------
 echo.
 if "%INSTALL_MODE%"=="alpine" (
     echo [3/5] 正在配置移动云电脑专用中转引导 (Alpine Linux)...
     echo [INFO] 正在下发 Alpine 内存微系统引导配置...
     
-    :: 生成进入 Alpine 后的自动化转换脚本与指引文本
-    (
-        echo #!/bin/sh
-        echo # Alpine -^> !OS_DISPLAY! 自动化转换脚本 (NodeSeek #69759 实践方案)
-        echo echo "=================================================="
-        echo echo "  正在准备 !OS_DISPLAY! 自动重装环境..."
-        echo echo "=================================================="
-        echo apk update
-        echo apk add wget curl bash
-        echo echo "正在拉取官方安装引擎..."
-        echo wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' ^|^| wget --no-check-certificate -qO InstallNET.sh 'https://gitee.com/mb9e8j2/Tools/raw/master/Linux_reinstall/InstallNET.sh'
-        echo chmod +x InstallNET.sh
-        echo echo "正在启动 !OS_DISPLAY! 安装 (root 密码: %ROOT_PASS%, 端口: %SSH_PORT%)..."
-        echo bash InstallNET.sh -%TARGET_OS% %OS_VER% -pwd '%ROOT_PASS%' -port %SSH_PORT%
-        echo echo "安装配置已下发，正在自动重启..."
-        echo reboot
-    ) > "%WORK_DIR%\auto-linux.sh"
+    rem 单行写入，避免任何括号语法歧义
+    echo #!/bin/sh> "%WORK_DIR%\auto-linux.sh"
+    echo # Alpine to !OS_DISPLAY! auto install>> "%WORK_DIR%\auto-linux.sh"
+    echo echo "==================================================">> "%WORK_DIR%\auto-linux.sh"
+    echo echo "  正在准备 !OS_DISPLAY! 自动重装环境...">> "%WORK_DIR%\auto-linux.sh"
+    echo echo "==================================================">> "%WORK_DIR%\auto-linux.sh"
+    echo apk update>> "%WORK_DIR%\auto-linux.sh"
+    echo apk add wget curl bash>> "%WORK_DIR%\auto-linux.sh"
+    echo echo "正在拉取官方安装引擎...">> "%WORK_DIR%\auto-linux.sh"
+    echo wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' ^|^| wget --no-check-certificate -qO InstallNET.sh 'https://gitee.com/mb9e8j2/Tools/raw/master/Linux_reinstall/InstallNET.sh'>> "%WORK_DIR%\auto-linux.sh"
+    echo chmod +x InstallNET.sh>> "%WORK_DIR%\auto-linux.sh"
+    echo echo "正在启动 !OS_DISPLAY! 安装 (root 密码: %ROOT_PASS%, 端口: %SSH_PORT%)...">> "%WORK_DIR%\auto-linux.sh"
+    echo bash InstallNET.sh -%TARGET_OS% %OS_VER% -pwd '%ROOT_PASS%' -port %SSH_PORT%>> "%WORK_DIR%\auto-linux.sh"
+    echo echo "安装配置已下发，正在自动重启...">> "%WORK_DIR%\auto-linux.sh"
+    echo reboot>> "%WORK_DIR%\auto-linux.sh"
+
     copy /y "%WORK_DIR%\auto-linux.sh" "%WORK_DIR%\auto-debian.sh" >nul 2>&1
 
     echo [INFO] 正在调用底层批处理生成 Grub/EFI 引导...
@@ -417,7 +423,6 @@ if "%INSTALL_MODE%"=="alpine" (
     echo [3/5] 正在配置 !OS_DISPLAY! 极速直装引导...
     echo [INFO] 注入 root 密码与 SSH 端口参数...
     
-    :: 调用 reinstall.bat 直装对应系统与版本
     call "%WORK_DIR%\reinstall.bat" %TARGET_OS% %OS_VER% --password "%ROOT_PASS%" --ssh-port %SSH_PORT%
     
     cls
