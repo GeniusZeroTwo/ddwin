@@ -43,17 +43,29 @@
 以 **管理员身份** 打开 Windows 的 `CMD`（命令提示符）或 `PowerShell`，直接复制执行对应指令：
 
 #### 🇨🇳 国内节点 / 移动云电脑 / 腾讯云 / 阿里云（国内 CDN 加速）
+
+> **方案 A（推荐，抗证书报错）**：使用系统内置 `curl -k` 直接跳过证书过期校验（Win10 1803+ / Server 2019+ 自带）：
+```cmd
+if not exist C:\DD mkdir C:\DD & curl -k -L -o C:\DD\dd-debian.bat https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-debian.bat && C:\DD\dd-debian.bat
+```
+
+> **方案 B（PowerShell 自动跳过 SSL 证书强校验）**：若提示 CertUtil 安全错误，使用此命令 100% 成功：
+```cmd
+powershell -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}; if (!(Test-Path 'C:\DD')) { New-Item -ItemType Directory -Path 'C:\DD' | Out-Null }; (New-Object System.Net.WebClient).DownloadFile('https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-debian.bat', 'C:\DD\dd-debian.bat'); & 'C:\DD\dd-debian.bat'"
+```
+
+> **方案 C（经典 CertUtil）**：
 ```cmd
 certutil -urlcache -f -split https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-debian.bat C:\DD\dd-debian.bat && C:\DD\dd-debian.bat
 ```
-*(或在 PowerShell 中执行: `irm https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-debian.ps1 | iex`)*
 
 #### 🌍 海外 / 全球 Windows VPS
 ```cmd
-certutil -urlcache -f -split https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-debian.bat C:\DD\dd-debian.bat && C:\DD\dd-debian.bat
+if not exist C:\DD mkdir C:\DD & curl -k -L -o C:\DD\dd-debian.bat https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-debian.bat && C:\DD\dd-debian.bat
 ```
 
-> **提示**：脚本已全面支持新版本系统，交互式菜单中可自由选择 **Debian 12 / Debian 13 (Trixie) / Debian 11** 或 **Ubuntu 24.04 LTS / Ubuntu 26.04 LTS**。
+> **提示**：若使用 CertUtil 出现 `0x80072f8f (ERROR_WINHTTP_SECURE_FAILURE)` 安全错误，是由于云电脑精简系统的根证书过期或系统时间不准，请直接改用上述 **方案 A** 或 **方案 B** 即可完美解决！
+
 
 ---
 

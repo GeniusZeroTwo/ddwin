@@ -323,13 +323,28 @@ set "REINSTALL_URL=https://raw.githubusercontent.com/bin456789/reinstall/main/re
 if "%IS_CHINA%"=="true" (
     set "REINSTALL_URL=https://cnb.cool/bin456789/reinstall/-/git/raw/main/reinstall.bat"
 )
+set "REINSTALL_PROXY=https://ghproxy.cc/https://raw.githubusercontent.com/bin456789/reinstall/main/reinstall.bat"
 
 del /f /q "%WORK_DIR%\reinstall.bat" >nul 2>&1
-certutil -urlcache -f -split "%REINSTALL_URL%" "%WORK_DIR%\reinstall.bat" >nul 2>&1
 
+:: 优先使用 curl -k (跳过证书失效问题)
+where curl >nul 2>&1
+if %errorlevel% equ 0 (
+    curl -k -s -L -f -o "%WORK_DIR%\reinstall.bat" "%REINSTALL_URL%" >nul 2>&1
+    if not exist "%WORK_DIR%\reinstall.bat" (
+        curl -k -s -L -f -o "%WORK_DIR%\reinstall.bat" "%REINSTALL_PROXY%" >nul 2>&1
+    )
+)
+
+:: 次选 certutil
 if not exist "%WORK_DIR%\reinstall.bat" (
-    echo [WARN] 通过主源下载失败，正在尝试备用源...
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri 'https://ghproxy.cc/https://raw.githubusercontent.com/bin456789/reinstall/main/reinstall.bat' -OutFile '%WORK_DIR%\reinstall.bat'" >nul 2>&1
+    certutil -urlcache -f -split "%REINSTALL_URL%" "%WORK_DIR%\reinstall.bat" >nul 2>&1
+)
+
+:: 兜底使用 PowerShell (带 TLS 1.2 与跳过 SSL 证书强校验)
+if not exist "%WORK_DIR%\reinstall.bat" (
+    echo [WARN] 正在启用 PowerShell 安全通道拉取组件...
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}; try { (New-Object System.Net.WebClient).DownloadFile('%REINSTALL_URL%', '%WORK_DIR%\reinstall.bat') } catch { (New-Object System.Net.WebClient).DownloadFile('%REINSTALL_PROXY%', '%WORK_DIR%\reinstall.bat') }" >nul 2>&1
 )
 
 if not exist "%WORK_DIR%\reinstall.bat" (
