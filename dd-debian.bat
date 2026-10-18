@@ -24,7 +24,11 @@ rem ----------------- 检查并提升管理员权限 -----------------
 net session >nul 2>&1
 if %errorlevel% neq 0 (
     echo [提示] 正在请求系统管理员权限以配置底层引导...
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process cmd -ArgumentList '/k \"\"%~f0\" %*\"' -Verb RunAs" 2>nul
+powershell -NoProfile -ExecutionPolicy Bypass -Command "='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = 3072; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {}; try { (New-Object System.Net.WebClient).DownloadFile('%SRC1%', '%WORK_DIR%
+einstall.bat') } catch { (New-Object System.Net.WebClient).DownloadFile('%SRC2%', '%WORK_DIR%
+einstall.bat') }" >nul 2>&1
+einstall.bat\') } catch { (New-Object System.Net.WebClient).DownloadFile(\'%SRC2%\', \'%WORK_DIR%
+einstall.bat\') }" >nul 2>&1
     if !errorlevel! neq 0 (
         echo.
         echo ================================================================
@@ -146,7 +150,11 @@ if /i "!TARGET_OS!"=="ubuntu" (
 
 rem ----------------- 检测国内网络环境 -----------------
 echo [1/5] 正在检测当前网络环境与连接质量...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; try { $r = (Invoke-WebRequest -Uri 'https://cip.cc' -TimeoutSec 3 -UseBasicParsing).Content; if ($r -match '中国') { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -Command "='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = 3072; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {}; try { (New-Object System.Net.WebClient).DownloadFile('%SRC1%', '%WORK_DIR%
+einstall.bat') } catch { (New-Object System.Net.WebClient).DownloadFile('%SRC2%', '%WORK_DIR%
+einstall.bat') }" >nul 2>&1
+einstall.bat\') } catch { (New-Object System.Net.WebClient).DownloadFile(\'%SRC2%\', \'%WORK_DIR%
+einstall.bat\') }" >nul 2>&1
 if %errorlevel% equ 0 (
     set "IS_CHINA=true"
     echo [INFO] 检测到当前服务器位于中国大陆节点，已自动切换国内极速镜像源！
@@ -185,7 +193,11 @@ echo 说明: 重装脚本需要注入底层引导工具，Defender 可能会误�
 set /p disable_def="是否一键关闭实时防护？(Y/N) [默认: Y]: "
 if /i "!disable_def!"=="" set "disable_def=Y"
 if /i "!disable_def!"=="Y" (
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-MpPreference -DisableRealtimeMonitoring $true" >nul 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -Command "='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = 3072; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {}; try { (New-Object System.Net.WebClient).DownloadFile('%SRC1%', '%WORK_DIR%
+einstall.bat') } catch { (New-Object System.Net.WebClient).DownloadFile('%SRC2%', '%WORK_DIR%
+einstall.bat') }" >nul 2>&1
+einstall.bat\') } catch { (New-Object System.Net.WebClient).DownloadFile(\'%SRC2%\', \'%WORK_DIR%
+einstall.bat\') }" >nul 2>&1
     echo [INFO] 已尝试关闭 Windows Defender 实时监控。
 )
 
@@ -336,11 +348,11 @@ if "%IS_CHINA%"=="true" (
 rem 1. 优先使用当前目录已有的 reinstall.bat
 if exist "%~dp0reinstall.bat" (
     echo [INFO] 检测到本地目录存在 reinstall.bat，正在直接同步到工作区...
-    copy /y "%~dp0reinstall.bat" "%WORK_DIR%einstall.bat" >nul 2>&1
+    copy /y "%~dp0reinstall.bat" "%WORK_DIR%\reinstall.bat" >nul 2>&1
 )
 
 rem 2. 若工作区已存在且有效，直接复用（切勿重复下载或删除）
-if exist "%WORK_DIR%einstall.bat" (
+if exist "%WORK_DIR%\reinstall.bat" (
     echo [INFO] 底层重装核心 [reinstall.bat] 已就绪，直接使用。
     goto skip_download_reinstall
 )
@@ -353,25 +365,25 @@ set "SRC4=https://raw.githubusercontent.com/bin456789/reinstall/main/reinstall.b
 
 where curl >nul 2>&1
 if !errorlevel! equ 0 (
-    curl -k -s -L -f -o "%WORK_DIR%einstall.bat" "%SRC1%" >nul 2>&1
-    if not exist "%WORK_DIR%einstall.bat" curl -k -s -L -f -o "%WORK_DIR%einstall.bat" "%SRC2%" >nul 2>&1
-    if not exist "%WORK_DIR%einstall.bat" curl -k -s -L -f -o "%WORK_DIR%einstall.bat" "%SRC3%" >nul 2>&1
-    if not exist "%WORK_DIR%einstall.bat" curl -k -s -L -f -o "%WORK_DIR%einstall.bat" "%SRC4%" >nul 2>&1
+    curl -k -s -L -f -o "%WORK_DIR%\reinstall.bat" "%SRC1%" >nul 2>&1
+    if not exist "%WORK_DIR%\reinstall.bat" curl -k -s -L -f -o "%WORK_DIR%\reinstall.bat" "%SRC2%" >nul 2>&1
+    if not exist "%WORK_DIR%\reinstall.bat" curl -k -s -L -f -o "%WORK_DIR%\reinstall.bat" "%SRC3%" >nul 2>&1
+    if not exist "%WORK_DIR%\reinstall.bat" curl -k -s -L -f -o "%WORK_DIR%\reinstall.bat" "%SRC4%" >nul 2>&1
 )
 
-if not exist "%WORK_DIR%einstall.bat" certutil -urlcache -f -split "%SRC1%" "%WORK_DIR%einstall.bat" >nul 2>&1
-if not exist "%WORK_DIR%einstall.bat" certutil -urlcache -f -split "%SRC2%" "%WORK_DIR%einstall.bat" >nul 2>&1
-if not exist "%WORK_DIR%einstall.bat" certutil -urlcache -f -split "%SRC3%" "%WORK_DIR%einstall.bat" >nul 2>&1
+if not exist "%WORK_DIR%\reinstall.bat" certutil -urlcache -f -split "%SRC1%" "%WORK_DIR%\reinstall.bat" >nul 2>&1
+if not exist "%WORK_DIR%\reinstall.bat" certutil -urlcache -f -split "%SRC2%" "%WORK_DIR%\reinstall.bat" >nul 2>&1
+if not exist "%WORK_DIR%\reinstall.bat" certutil -urlcache -f -split "%SRC3%" "%WORK_DIR%\reinstall.bat" >nul 2>&1
 
-if exist "%WORK_DIR%einstall.bat" goto skip_ps_download
+if exist "%WORK_DIR%\reinstall.bat" goto skip_ps_download
 echo [WARN] 正在启用 PowerShell 安全通道拉取组件...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = 3072; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {}; try { (New-Object System.Net.WebClient).DownloadFile('%SRC1%', '%WORK_DIR%\reinstall.bat') } catch { (New-Object System.Net.WebClient).DownloadFile('%SRC2%', '%WORK_DIR%\reinstall.bat') }" >nul 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = 3072; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}; try { (New-Object System.Net.WebClient).DownloadFile('%SRC1%', '%WORK_DIR%\reinstall.bat') } catch { (New-Object System.Net.WebClient).DownloadFile('%SRC2%', '%WORK_DIR%\reinstall.bat') }" >nul 2>&1
 :skip_ps_download
 
 rem 4. 若所有网络下载均受阻，直接从内置模块自解包（零网络依赖兜底）
-if not exist "%WORK_DIR%einstall.bat" call :extract_embedded_reinstall
+if not exist "%WORK_DIR%\reinstall.bat" call :extract_embedded_reinstall
 
-if exist "%WORK_DIR%einstall.bat" goto skip_download_reinstall
+if exist "%WORK_DIR%\reinstall.bat" goto skip_download_reinstall
 echo.
 echo ================================================================
 echo [ERROR] 获取 reinstall.bat 失败！
@@ -392,25 +404,25 @@ goto do_direct_mode
 echo [3/5] 正在配置移动云电脑专用中转引导 [Alpine Linux]...
 echo [INFO] 正在下发 Alpine 内存微系统引导配置...
 
-echo #!/bin/sh> "%WORK_DIR%uto-linux.sh"
-echo # Alpine to !OS_DISPLAY! auto install>> "%WORK_DIR%uto-linux.sh"
-echo echo "==================================================">> "%WORK_DIR%uto-linux.sh"
-echo echo "  正在准备 !OS_DISPLAY! 自动重装环境...">> "%WORK_DIR%uto-linux.sh"
-echo echo "==================================================">> "%WORK_DIR%uto-linux.sh"
-echo apk update>> "%WORK_DIR%uto-linux.sh"
-echo apk add wget curl bash>> "%WORK_DIR%uto-linux.sh"
-echo echo "正在拉取官方安装引擎...">> "%WORK_DIR%uto-linux.sh"
-echo wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' ^|^| wget --no-check-certificate -qO InstallNET.sh 'https://gitee.com/mb9e8j2/Tools/raw/master/Linux_reinstall/InstallNET.sh'>> "%WORK_DIR%uto-linux.sh"
-echo chmod +x InstallNET.sh>> "%WORK_DIR%uto-linux.sh"
-echo echo "正在启动 !OS_DISPLAY! 安装 [root 密码: %ROOT_PASS%, 端口: %SSH_PORT%]...">> "%WORK_DIR%uto-linux.sh"
-echo bash InstallNET.sh -%TARGET_OS% %OS_VER% -pwd '%ROOT_PASS%' -port %SSH_PORT%>> "%WORK_DIR%uto-linux.sh"
-echo echo "安装配置已下发，正在自动重启...">> "%WORK_DIR%uto-linux.sh"
-echo reboot>> "%WORK_DIR%uto-linux.sh"
+echo #!/bin/sh> "%WORK_DIR%\auto-linux.sh"
+echo # Alpine to !OS_DISPLAY! auto install>> "%WORK_DIR%\auto-linux.sh"
+echo echo "==================================================">> "%WORK_DIR%\auto-linux.sh"
+echo echo "  正在准备 !OS_DISPLAY! 自动重装环境...">> "%WORK_DIR%\auto-linux.sh"
+echo echo "==================================================">> "%WORK_DIR%\auto-linux.sh"
+echo apk update>> "%WORK_DIR%\auto-linux.sh"
+echo apk add wget curl bash>> "%WORK_DIR%\auto-linux.sh"
+echo echo "正在拉取官方安装引擎...">> "%WORK_DIR%\auto-linux.sh"
+echo wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' ^|^| wget --no-check-certificate -qO InstallNET.sh 'https://gitee.com/mb9e8j2/Tools/raw/master/Linux_reinstall/InstallNET.sh'>> "%WORK_DIR%\auto-linux.sh"
+echo chmod +x InstallNET.sh>> "%WORK_DIR%\auto-linux.sh"
+echo echo "正在启动 !OS_DISPLAY! 安装 [root 密码: %ROOT_PASS%, 端口: %SSH_PORT%]...">> "%WORK_DIR%\auto-linux.sh"
+echo bash InstallNET.sh -%TARGET_OS% %OS_VER% -pwd '%ROOT_PASS%' -port %SSH_PORT%>> "%WORK_DIR%\auto-linux.sh"
+echo echo "安装配置已下发，正在自动重启...">> "%WORK_DIR%\auto-linux.sh"
+echo reboot>> "%WORK_DIR%\auto-linux.sh"
 
-copy /y "%WORK_DIR%uto-linux.sh" "%WORK_DIR%uto-debian.sh" >nul 2>&1
+copy /y "%WORK_DIR%\auto-linux.sh" "%WORK_DIR%\auto-debian.sh" >nul 2>&1
 
 echo [INFO] 正在调用底层批处理生成 Grub/EFI 引导...
-call "%WORK_DIR%einstall.bat" alpine-3.18
+call "%WORK_DIR%\reinstall.bat" alpine-3.18
 if !errorlevel! equ 0 goto alpine_success
 echo.
 echo ================================================================
@@ -453,7 +465,7 @@ exit /b 0
 echo [3/5] 正在配置 !OS_DISPLAY! 极速直装引导...
 echo [INFO] 注入 root 密码与 SSH 端口参数...
 
-call "%WORK_DIR%einstall.bat" %TARGET_OS% %OS_VER% --password "%ROOT_PASS%" --ssh-port %SSH_PORT%
+call "%WORK_DIR%\reinstall.bat" %TARGET_OS% %OS_VER% --password "%ROOT_PASS%" --ssh-port %SSH_PORT%
 if !errorlevel! equ 0 goto direct_success
 echo.
 echo ================================================================
@@ -649,7 +661,7 @@ echo JSkgZG8gKA0KICAgIGlmIG5vdCBleGlzdCAiJVN5c3RlbURyaXZlJVxjeWd3aW5cYmluXCUlYyI
 echo aWYgbm90IGV4aXN0ICIlU3lzdGVtRHJpdmUlXGN5Z3dpblxiaW5cJSVjLmV4ZSIgKA0KICAgICAg
 echo ICBleGl0IC9iIDENCiAgICApDQopDQpleGl0IC9iIDANCg==
 echo -----END CERTIFICATE-----
-) > "%WORK_DIR%einstall.b64"
-certutil -decode "%WORK_DIR%einstall.b64" "%WORK_DIR%einstall.bat" >nul 2>&1
-del /f /q "%WORK_DIR%einstall.b64" >nul 2>&1
+) > "%WORK_DIR%\reinstall.b64"
+certutil -decode "%WORK_DIR%\reinstall.b64" "%WORK_DIR%\reinstall.bat" >nul 2>&1
+del /f /q "%WORK_DIR%\reinstall.b64" >nul 2>&1
 exit /b 0
