@@ -10,6 +10,12 @@ param (
     [string]$Port = "22",
     [string]$Mode = "direct",
     [string]$ZeroTier = "",
+    [string]$FrpcConfig = "",
+    [string]$WebPort = "",
+    [string]$EasyTierName = "",
+    [string]$EasyTierSecret = "",
+    [string]$EasyTierPeer = "",
+    [string]$EasyTierIp = "",
     [switch]$Yes
 )
 

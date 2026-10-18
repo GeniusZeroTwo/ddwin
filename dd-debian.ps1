@@ -13,6 +13,12 @@ param (
     [string]$Port = "22",
     [string]$Mode = "direct",
     [string]$ZeroTier = "",
+    [string]$FrpcConfig = "",
+    [string]$WebPort = "",
+    [string]$EasyTierName = "",
+    [string]$EasyTierSecret = "",
+    [string]$EasyTierPeer = "",
+    [string]$EasyTierIp = "",
     [switch]$Yes
 )
 
@@ -23,7 +29,21 @@ param (
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
     Write-Host "[提示] 正在请求管理员权限以配置系统引导..." -ForegroundColor Yellow
-    $argList = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+    $forward = @()
+    if ($OS) { $forward += "-OS `"$OS`"" }
+    if ($Version) { $forward += "-Version `"$Version`"" }
+    if ($Password) { $forward += "-Password `"$Password`"" }
+    if ($Port) { $forward += "-Port `"$Port`"" }
+    if ($Mode) { $forward += "-Mode `"$Mode`"" }
+    if ($ZeroTier) { $forward += "-ZeroTier `"$ZeroTier`"" }
+    if ($FrpcConfig) { $forward += "-FrpcConfig `"$FrpcConfig`"" }
+    if ($WebPort) { $forward += "-WebPort `"$WebPort`"" }
+    if ($EasyTierName) { $forward += "-EasyTierName `"$EasyTierName`"" }
+    if ($EasyTierSecret) { $forward += "-EasyTierSecret `"$EasyTierSecret`"" }
+    if ($EasyTierPeer) { $forward += "-EasyTierPeer `"$EasyTierPeer`"" }
+    if ($EasyTierIp) { $forward += "-EasyTierIp `"$EasyTierIp`"" }
+    if ($Yes) { $forward += "-Yes" }
+    $argList = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" $($forward -join ' ')"
     Start-Process powershell -Verb RunAs -ArgumentList $argList
     exit
 }
@@ -68,6 +88,12 @@ if ($Password) { $cmdArgs += "-p `"$Password`"" }
 if ($Port) { $cmdArgs += "-P `"$Port`"" }
 if ($Mode) { $cmdArgs += "-m `"$Mode`"" }
 if ($ZeroTier) { $cmdArgs += "-z `"$ZeroTier`"" }
+if ($FrpcConfig) { $cmdArgs += "-f `"$FrpcConfig`"" }
+if ($WebPort) { $cmdArgs += "--web-port `"$WebPort`"" }
+if ($EasyTierName) { $cmdArgs += "--easytier-name `"$EasyTierName`"" }
+if ($EasyTierSecret) { $cmdArgs += "--easytier-secret `"$EasyTierSecret`"" }
+if ($EasyTierPeer) { $cmdArgs += "--easytier-peer `"$EasyTierPeer`"" }
+if ($EasyTierIp) { $cmdArgs += "--easytier-ip `"$EasyTierIp`"" }
 if ($Yes) { $cmdArgs += "-y" }
 
 $procArgs = "/c `"`"$batPath`" $($cmdArgs -join ' ')`""

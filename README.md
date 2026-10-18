@@ -21,6 +21,7 @@
   - [🌟 移动云电脑 (和家庭/天翼云) 核心痛点与 Alpine 中转方案](#-移动云电脑-和家庭天翼云-核心痛点与-alpine-中转方案)
   - [📖 移动云电脑 DD Linux 实操全流程 (图文指南)](#-移动云电脑-dd-linux-实操全流程-图文指南)
   - [🌐 无公网 IP 连接方案 (ZeroTier 组网)](#-无公网-ip-连接方案-zerotier-组网)
+  - [🏠 家庭云电脑：FRP 穿透安装 + EasyTier 组网](#-家庭云电脑frp-穿透安装--easytier-组网)
   - [⚠️ 移动云电脑避坑与保活指南](#️-移动云电脑避坑与保活指南)
   - [📋 Windows 脚本参数说明 (`dd-debian.bat` / `dd-linux.bat`)](#-windows-脚本参数说明-dd-debianbat--dd-linuxbat)
 - [二、Linux 一键重装/DD 至 Windows 官方原版](#二linux-一键重装dd-至-windows-官方原版)
@@ -162,6 +163,41 @@ C:\DD\dd-debian.bat
 
 ---
 
+### 🏠 家庭云电脑：FRP 穿透安装 + EasyTier 组网
+
+> 参考 LINUX DO：[《移动家庭云电脑 DD 重装 + EasyTier 组网 + FRP 穿透》](https://linux.do/t/topic/2843311)
+
+家庭云电脑在直装过程中，官方客户端经常进不了安装画面。脚本把 `frpc.toml` 的 HTTP 直链交给 [bin456789/reinstall](https://github.com/bin456789/reinstall) 的 `--frpc-config`（不是旧教程里的 `--frpc-toml`）。安装期间用 FRP 映射出来的 SSH 连进去，也可以用 Web 端口看日志。
+
+先在一台有公网的机器上放好 `frps` 和 `frpc.toml`，并用 `python3 -m http.server 5000` 把配置文件提供出来。然后在云电脑里：
+
+```cmd
+C:\DD\dd-debian.bat -o ubuntu -v 24 -p "MyUbuntuPass#2026" -f "http://公网IP:5000/frpc.toml" --web-port 80 -y
+```
+
+连法：
+
+```bash
+ssh -p <frpc.toml 里的 remotePort> root@<FRP 服务器公网 IP>
+```
+
+新系统起来之后再装 EasyTier。交互向导里填了网络名、密码和中转节点的话，重启前屏幕上会打出这条命令：
+
+```bash
+wget -qO- https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/easytier-setup.sh | bash -s -- \
+  --name <网络名> --secret <网络密码> --peer tcp://<中转IP>:11010 --ip <可选虚拟IP>
+```
+
+直装飞牛 fnOS 时同样把 frpc 挂上：
+
+```cmd
+C:\DD\dd-debian.bat -o fnos -p "MyFnOSPass#2026" -f "http://公网IP:5000/frpc.toml" -y
+```
+
+如果 Cygwin 起不来、窗口挂住，先看有没有 `pcas_monitor.exe`，卸载它对应的软件后再跑脚本。
+
+---
+
 ### ⚠️ 移动云电脑避坑与保活指南
 
 > 结合各大社区网友折腾经验与避坑要点：
@@ -191,6 +227,12 @@ C:\DD\dd-debian.bat
 | `-P` / `--port` | 指定 SSH 远程连接端口 | `-P 2222` | `22` |
 | `-m` / `--mode` | 安装模式 (`direct` 原版直装 / `alpine` 移动云电脑中转) | `-m alpine` | `direct` |
 | `-z` / `--zerotier` | 可选: 预设 ZeroTier 网络 ID | `-z "8bdXXXXXXXX"` | 无 |
+| `-f` / `--frpc-config` | 可选: `frpc.toml` 的 http(s) 直链，安装过程走 FRP | `-f "http://1.2.3.4:5000/frpc.toml"` | 无 |
+| `--web-port` | 安装期间查看日志的 Web 端口 | `--web-port 80` | 配了 FRP 时为 `80` |
+| `--easytier-name` | 可选: 装好后要加入的 EasyTier 网络名 | `--easytier-name mynet` | 无 |
+| `--easytier-secret` | EasyTier 网络密码 | `--easytier-secret secret` | 无 |
+| `--easytier-peer` | EasyTier 中转节点 | `--easytier-peer tcp://1.2.3.4:11010` | 无 |
+| `--easytier-ip` | 可选: EasyTier 静态虚拟 IP | `--easytier-ip 10.126.126.2` | 无 |
 | `-y` / `--yes` | 静默无人值守模式 (跳过交互菜单直接启动) | `-y` | `false` |
 | `-h` / `--help` | 显示帮助信息 | `-h` | - |
 
@@ -211,6 +253,9 @@ C:\DD\dd-debian.bat -m alpine -v 13 -p "MyDebianPass#2026" -y
 
 # 移动云电脑 Alpine 中转模式 (转接 Ubuntu 24.04)：
 C:\DD\dd-debian.bat -m alpine -o ubuntu -v 24 -p "MyUbuntuPass#2026" -y
+
+# 家庭云电脑直装 Ubuntu 24.04，安装过程用 FRP 连入：
+C:\DD\dd-debian.bat -o ubuntu -v 24 -p "MyUbuntuPass#2026" -f "http://1.2.3.4:5000/frpc.toml" -y
 ```
 
 ---

@@ -15,6 +15,9 @@ rem      - 模式 B: 移动云电脑专用 Alpine 中转模式 (NodeSeek 69759 �
 rem   5. 自定义 SSH 端口与 root 密码 (支持随机高强度密码生成)
 rem   6. 自动构建 C:\DD 规范工作区，防止路径空格与中文导致引导失败
 rem   7. 交互式菜单向导与 CLI 静默参数双重支持
+rem   8. 家庭云电脑: 把 frpc.toml 直链传给 reinstall 的 --frpc-config
+rem      (安装中官方客户端进不去时，用 FRP 的 SSH / Web 端口看进度)
+rem   9. 可选记下 EasyTier 参数，进新系统后一条命令装成开机服务
 rem ==============================================================================
 
 setlocal enabledelayedexpansion
@@ -47,6 +50,12 @@ set "AUTO_CONFIRM=false"
 set "WORK_DIR=C:\DD"
 set "IS_CHINA=false"
 set "ZEROTIER_ID="
+set "FRPC_CONFIG="
+set "WEB_PORT="
+set "EASYTIER_NAME="
+set "EASYTIER_SECRET="
+set "EASYTIER_PEER="
+set "EASYTIER_IP="
 
 rem ----------------- 创建规范工作目录 -----------------
 if not exist "%WORK_DIR%" (
@@ -71,6 +80,13 @@ if /i "%~1"=="-m" (set "INSTALL_MODE=%~2" & shift & shift & goto parse_args)
 if /i "%~1"=="--mode" (set "INSTALL_MODE=%~2" & shift & shift & goto parse_args)
 if /i "%~1"=="-z" (set "ZEROTIER_ID=%~2" & shift & shift & goto parse_args)
 if /i "%~1"=="--zerotier" (set "ZEROTIER_ID=%~2" & shift & shift & goto parse_args)
+if /i "%~1"=="-f" (set "FRPC_CONFIG=%~2" & shift & shift & goto parse_args)
+if /i "%~1"=="--frpc-config" (set "FRPC_CONFIG=%~2" & shift & shift & goto parse_args)
+if /i "%~1"=="--web-port" (set "WEB_PORT=%~2" & shift & shift & goto parse_args)
+if /i "%~1"=="--easytier-name" (set "EASYTIER_NAME=%~2" & shift & shift & goto parse_args)
+if /i "%~1"=="--easytier-secret" (set "EASYTIER_SECRET=%~2" & shift & shift & goto parse_args)
+if /i "%~1"=="--easytier-peer" (set "EASYTIER_PEER=%~2" & shift & shift & goto parse_args)
+if /i "%~1"=="--easytier-ip" (set "EASYTIER_IP=%~2" & shift & shift & goto parse_args)
 if /i "%~1"=="-y" (set "AUTO_CONFIRM=true" & shift & goto parse_args)
 if /i "%~1"=="--yes" (set "AUTO_CONFIRM=true" & shift & goto parse_args)
 shift
@@ -94,6 +110,12 @@ echo   -p, --password ^<密码^>      Linux root 登录密码 (留空则随机�
 echo   -P, --port ^<端口^>          SSH 服务连接端口 (默认: 22)
 echo   -m, --mode ^<模式^>          安装模式: direct (原版直装) 或 alpine (移动云电脑中转)
 echo   -z, --zerotier ^<网络ID^>    可选: 预设 ZeroTier 网络 ID (用于内网穿透)
+echo   -f, --frpc-config ^<URL^>  可选: frpc.toml 的 http(s) 直链，转交给 reinstall --frpc-config
+echo   --web-port ^<端口^>        安装期间查看日志的 Web 端口 (配了 FRP 时默认 80)
+echo   --easytier-name ^<名称^>   可选: 装好系统后要加入的 EasyTier 网络名
+echo   --easytier-secret ^<密码^> EasyTier 网络密码
+echo   --easytier-peer ^<节点^>   EasyTier 中转，例如 tcp://1.2.3.4:11010
+echo   --easytier-ip ^<虚拟IP^>   可选: EasyTier 静态虚拟 IP
 echo   -y, --yes                  静默模式 (跳过交互菜单，直接确认执行)
 echo   -h, --help                 显示本帮助信息
 echo.
@@ -107,8 +129,14 @@ echo.
 echo   # 极速一键重装为 Ubuntu 24.04 LTS:
 echo   dd-debian.bat -o ubuntu -v 24 -p "MyUbuntuPass#2026" -y
 echo.
+echo   # 家庭云电脑: 直装 Ubuntu 24.04，并用 FRP 在安装过程中连入
+echo   dd-debian.bat -o ubuntu -v 24 -p "MyUbuntuPass#2026" -f "http://1.2.3.4:5000/frpc.toml" -y
+echo.
 echo   # 移动云电脑中转模式 (转入 Debian 13):
 echo   dd-debian.bat -m alpine -v 13 -y
+echo.
+echo   # 直装飞牛 fnOS，并挂上同一份 frpc:
+echo   dd-debian.bat -o fnos -f "http://1.2.3.4:5000/frpc.toml" -y
 echo ================================================================
 pause
 exit /b 0
@@ -132,6 +160,11 @@ if /i "!TARGET_OS!"=="ubuntu" (
     if "!OS_VER!"=="" set "OS_VER=24.04"
     if "!OS_VER!"=="12" set "OS_VER=24.04"
     set "OS_DISPLAY=Ubuntu !OS_VER! LTS"
+) else if /i "!TARGET_OS!"=="fnos" (
+    set "TARGET_OS=fnos"
+    if "!OS_VER!"=="" set "OS_VER=1"
+    if "!OS_VER!"=="12" set "OS_VER=1"
+    set "OS_DISPLAY=飞牛 fnOS"
 ) else (
     set "TARGET_OS=debian"
     if "!OS_VER!"=="" set "OS_VER=12"
@@ -180,13 +213,15 @@ echo ================================================================
 echo  工作目录: %WORK_DIR%
 echo  网络路由: !IS_CHINA! (国内加速: !IS_CHINA!)
 echo ----------------------------------------------------------------
-echo [第 1 步: 防护检测] 是否临时关闭 Windows Defender 实时保护？
+echo [第 1 步: 防护检测] 是否临时关闭 Windows Defender 实时保护和防火墙？
 echo 说明: 重装脚本需要注入底层引导工具，Defender 可能会误杀拦截。
-set /p disable_def="是否一键关闭实时防护？(Y/N) [默认: Y]: "
+echo       家庭云电脑 DD 时防火墙也要关掉，否则下载和穿透容易被拦。
+set /p disable_def="是否一键关闭实时防护和防火墙？(Y/N) [默认: Y]: "
 if /i "!disable_def!"=="" set "disable_def=Y"
 if /i "!disable_def!"=="Y" (
     powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-MpPreference -DisableRealtimeMonitoring $true" >nul 2>&1
-    echo [INFO] 已尝试关闭 Windows Defender 实时监控。
+    netsh advfirewall set allprofiles state off >nul 2>&1
+    echo [INFO] 已尝试关闭 Windows Defender 实时监控和防火墙。
 )
 
 echo.
@@ -278,15 +313,42 @@ set /p input_zt="请输入 ZeroTier Network ID [没有请直接回车跳过]: "
 if not "!input_zt!"=="" set "ZEROTIER_ID=!input_zt!"
 :skip_zerotier_prompt
 
+echo.
+echo ----------------------------------------------------------------
+echo [可选: FRP 穿透] 家庭云电脑安装过程中，官方客户端经常进不去
+echo 先在有公网的机器上放好 frpc.toml，再用 HTTP 直链交给重装引擎。
+echo 引擎参数是 --frpc-config。不要用旧教程里的 --frpc-toml。
+set /p input_frpc="frpc.toml 的 http(s) 直链 [没有请直接回车跳过]: "
+if not "!input_frpc!"=="" set "FRPC_CONFIG=!input_frpc!"
+if not "!FRPC_CONFIG!"=="" (
+    set /p input_web="安装日志 Web 端口 [默认: 80]: "
+    if not "!input_web!"=="" set "WEB_PORT=!input_web!"
+    echo.
+    echo [可选: EasyTier] 新系统起来后组网。三项都填才会记下安装命令。
+    set /p input_et_name="EasyTier 网络名 [回车跳过]: "
+    if not "!input_et_name!"=="" (
+        set "EASYTIER_NAME=!input_et_name!"
+        set /p input_et_secret="EasyTier 网络密码: "
+        if not "!input_et_secret!"=="" set "EASYTIER_SECRET=!input_et_secret!"
+        set /p input_et_peer="EasyTier 中转节点 [例如 tcp://1.2.3.4:11010]: "
+        if not "!input_et_peer!"=="" set "EASYTIER_PEER=!input_et_peer!"
+        set /p input_et_ip="EasyTier 静态虚拟 IP [没有请回车]: "
+        if not "!input_et_ip!"=="" set "EASYTIER_IP=!input_et_ip!"
+    )
+)
+
 :skip_interactive
 
 if "%ROOT_PASS%"=="" (
-    if "!TARGET_OS!"=="ubuntu" (
+    if /i "!TARGET_OS!"=="fnos" (
+        set "ROOT_PASS=FnOS@2026Secure"
+    ) else if "!TARGET_OS!"=="ubuntu" (
         set "ROOT_PASS=Ubuntu@2026Secure"
     ) else (
         set "ROOT_PASS=Debian@2026Secure"
     )
 )
+if not "!FRPC_CONFIG!"=="" if "!WEB_PORT!"=="" set "WEB_PORT=80"
 
 rem ----------------- 确认配置界面 -----------------
 cls
@@ -300,6 +362,9 @@ echo  SSH 登录账户:   root
 echo  SSH 登录密码:   %ROOT_PASS%
 echo  SSH 连接端口:   %SSH_PORT%
 if not "%ZEROTIER_ID%"=="" echo  ZeroTier 组网:  %ZEROTIER_ID%
+if not "%FRPC_CONFIG%"=="" echo  FRP 配置直链:   %FRPC_CONFIG%
+if not "%WEB_PORT%"=="" echo  安装日志端口:   %WEB_PORT%
+if not "%EASYTIER_NAME%"=="" echo  EasyTier 网络:  %EASYTIER_NAME%  节点: %EASYTIER_PEER%
 echo  工作缓存目录:   %WORK_DIR%
 echo ================================================================
 echo [警告] 确认执行后，系统将格式化 C 盘并重构引导环境！
@@ -322,6 +387,14 @@ pause
 exit /b 0
 
 :do_install_confirm
+tasklist /FI "IMAGENAME eq pcas_monitor.exe" 2>nul | find /i "pcas_monitor.exe" >nul
+if not errorlevel 1 (
+    echo [WARN] 检测到 pcas_monitor.exe。它会让 Cygwin 挂起，重装核心起不来。
+    echo        请先卸载这个进程对应的软件，再重新运行本脚本。
+    echo        参考: https://blog.csdn.net/u010522644/article/details/159202035
+    if /i not "%AUTO_CONFIRM%"=="true" pause
+)
+
 rem ----------------- 下载或获取核心重装引擎 -----------------
 echo.
 echo [2/5] 正在准备底层引导与重装核心 [reinstall.bat]...
@@ -410,7 +483,13 @@ echo reboot>> "%WORK_DIR%\auto-linux.sh"
 copy /y "%WORK_DIR%\auto-linux.sh" "%WORK_DIR%\auto-debian.sh" >nul 2>&1
 
 echo [INFO] 正在调用底层批处理生成 Grub/EFI 引导...
-call "%WORK_DIR%\reinstall.bat" alpine 3.21 --password "123@@@" --ssh-port %SSH_PORT%
+if not "!FRPC_CONFIG!"=="" (
+    call "%WORK_DIR%\reinstall.bat" alpine 3.21 --password "123@@@" --ssh-port %SSH_PORT% --web-port !WEB_PORT! --frpc-config "!FRPC_CONFIG!"
+) else if not "!WEB_PORT!"=="" (
+    call "%WORK_DIR%\reinstall.bat" alpine 3.21 --password "123@@@" --ssh-port %SSH_PORT% --web-port !WEB_PORT!
+) else (
+    call "%WORK_DIR%\reinstall.bat" alpine 3.21 --password "123@@@" --ssh-port %SSH_PORT%
+)
 set "CALL_ERR=!errorlevel!"
 chcp 65001 >nul
 if !CALL_ERR! equ 0 goto alpine_success
@@ -435,27 +514,39 @@ echo  3. 登录用户名: root  ^|  默认登录密码: 123@@@
 echo  4. 登录后只需粘贴执行以下单行命令（全自动转入 !OS_DISPLAY!）：
 echo.
 if "%IS_CHINA%"=="true" (
-    echo     apk add wget curl bash ^&^& wget -qO- https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/alpine-to-debian.sh ^| bash -s -- -o %TARGET_OS% -v %OS_VER% -p "%ROOT_PASS%" -P %SSH_PORT%
+    set "ALPINE_URL=https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/alpine-to-debian.sh"
 ) else (
-    echo     apk add wget curl bash ^&^& wget -qO- https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/alpine-to-debian.sh ^| bash -s -- -o %TARGET_OS% -v %OS_VER% -p "%ROOT_PASS%" -P %SSH_PORT%
+    set "ALPINE_URL=https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/alpine-to-debian.sh"
 )
+set "ALPINE_CMD=apk add wget curl bash && wget -qO- !ALPINE_URL! | bash -s -- -o !TARGET_OS! -v !OS_VER! -P !SSH_PORT! -p "
+set ALPINE_CMD=!ALPINE_CMD!"!ROOT_PASS!"
+if not "!ZEROTIER_ID!"=="" set "ALPINE_CMD=!ALPINE_CMD! -z !ZEROTIER_ID!"
+if not "!FRPC_CONFIG!"=="" set ALPINE_CMD=!ALPINE_CMD! --frpc-config "!FRPC_CONFIG!" --web-port !WEB_PORT!
+if not "!EASYTIER_NAME!"=="" set ALPINE_CMD=!ALPINE_CMD! --easytier-name "!EASYTIER_NAME!" --easytier-secret "!EASYTIER_SECRET!" --easytier-peer "!EASYTIER_PEER!"
+if not "!EASYTIER_IP!"=="" set ALPINE_CMD=!ALPINE_CMD! --easytier-ip "!EASYTIER_IP!"
+echo     !ALPINE_CMD!
 echo.
 echo  5. 系统将全自动完成 !OS_DISPLAY! 安装！
 echo     * 最终 root 密码: %ROOT_PASS%
 echo     * 最终 SSH 端口:  %SSH_PORT%
 if not "%ZEROTIER_ID%"=="" echo     * ZeroTier 组网:  %ZEROTIER_ID%
+call :print_extra_access
 echo ================================================================
 echo.
-echo 系统将在 10 秒后自动重启...
-timeout /t 10
-shutdown /r /t 0
+call :wait_and_reboot
 exit /b 0
 
 :do_direct_mode
 echo [3/5] 正在配置 !OS_DISPLAY! 极速直装引导...
 echo [INFO] 注入 root 密码与 SSH 端口参数...
 
-call "%WORK_DIR%\reinstall.bat" %TARGET_OS% %OS_VER% --password "%ROOT_PASS%" --ssh-port %SSH_PORT%
+if not "!FRPC_CONFIG!"=="" (
+    call "%WORK_DIR%\reinstall.bat" %TARGET_OS% %OS_VER% --password "%ROOT_PASS%" --ssh-port %SSH_PORT% --web-port !WEB_PORT! --frpc-config "!FRPC_CONFIG!"
+) else if not "!WEB_PORT!"=="" (
+    call "%WORK_DIR%\reinstall.bat" %TARGET_OS% %OS_VER% --password "%ROOT_PASS%" --ssh-port %SSH_PORT% --web-port !WEB_PORT!
+) else (
+    call "%WORK_DIR%\reinstall.bat" %TARGET_OS% %OS_VER% --password "%ROOT_PASS%" --ssh-port %SSH_PORT%
+)
 set "CALL_ERR=!errorlevel!"
 chcp 65001 >nul
 if !CALL_ERR! equ 0 goto direct_success
@@ -478,9 +569,45 @@ echo  SSH 登录密码: %ROOT_PASS%
 echo  SSH 远程端口: %SSH_PORT%
 echo ----------------------------------------------------------------
 echo 预计安装耗时: 5 ~ 15 分钟 [视网络下载与磁盘性能而定]
-echo 安装完成后，即可直接使用 SSH 工具连接服务器！
+call :print_extra_access
+if "%FRPC_CONFIG%"=="" echo 安装完成后，即可直接使用 SSH 工具连接服务器！
 echo ================================================================
 echo.
+call :wait_and_reboot
+exit /b 0
+
+:print_extra_access
+if "%FRPC_CONFIG%"=="" goto print_easytier_only
+echo  FRP: 安装过程中官方客户端可能进不去。
+echo  用 frpc.toml 里的 remotePort 连接:
+echo    ssh -p ^<remotePort^> root@^<FRP 服务器公网 IP^>
+echo  也可以打开 http://^<FRP 服务器公网 IP^>:%WEB_PORT% 看安装日志。
+echo  传给引擎的参数是 --frpc-config，不是旧教程里的 --frpc-toml。
+:print_easytier_only
+if "%EASYTIER_NAME%"=="" goto print_extra_done
+if "%EASYTIER_SECRET%"=="" goto print_extra_done
+if "%EASYTIER_PEER%"=="" goto print_extra_done
+echo  EasyTier 要等新系统起来、SSH 登录后再执行:
+if "%IS_CHINA%"=="true" (
+    set "ET_URL=https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/easytier-setup.sh"
+) else (
+    set "ET_URL=https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/easytier-setup.sh"
+)
+set "ET_CMD=wget -qO- !ET_URL! | bash -s -- --name !EASYTIER_NAME! --secret !EASYTIER_SECRET! --peer !EASYTIER_PEER!"
+if not "!EASYTIER_IP!"=="" set "ET_CMD=!ET_CMD! --ip !EASYTIER_IP!"
+echo    !ET_CMD!
+:print_extra_done
+exit /b 0
+
+:wait_and_reboot
+if /i "%AUTO_CONFIRM%"=="true" goto wait_timeout
+if not "%FRPC_CONFIG%%EASYTIER_NAME%"=="" (
+    echo 请先抄下上面的连接和 EasyTier 命令，按任意键后立即重启...
+    pause
+    shutdown /r /t 0
+    exit /b 0
+)
+:wait_timeout
 echo 系统将在 10 秒后自动重启开始安装...
 timeout /t 10
 shutdown /r /t 0
