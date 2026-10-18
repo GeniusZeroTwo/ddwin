@@ -206,10 +206,19 @@ echo Downloading: %~1 %~2
 del /q "%~2" 2>nul
 if exist "%~2" (echo Cannot delete %~2 & exit /b 1)
 
-certutil -urlcache -f -split "%~1" "%~2" >nul
+where curl >nul 2>&1
+if not errorlevel 1 (
+    curl -k -s -L -f -o "%~2" "%~1" >nul 2>&1
+    if not errorlevel 1 if exist "%~2" exit /b 0
+)
+
+certutil -urlcache -f -split "%~1" "%~2" >nul 2>&1
 if not errorlevel 1 if exist "%~2" exit /b 0
 
-certutil -urlcache -split "%~1" "%~2" >nul
+certutil -urlcache -split "%~1" "%~2" >nul 2>&1
+if not errorlevel 1 if exist "%~2" exit /b 0
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = 3072; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}; (New-Object System.Net.WebClient).DownloadFile('%~1', '%~2')" >nul 2>&1
 if not errorlevel 1 if exist "%~2" exit /b 0
 
 rem 下载失败时删除文件，防止下载了一部分导致下次运行时跳过了下载

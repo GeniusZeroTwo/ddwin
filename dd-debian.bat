@@ -8,7 +8,7 @@ rem   1. 自动管理员权限提升 (UAC 智能弹窗，/k 保活防闪退)
 rem   2. 自动检测并一键关闭 Windows Defender 实时保护 (防误杀)
 rem   3. 智能国内外网络环境探测，境内自动启用国内高速加速源
 rem   4. 多系统与双模式支持:
-rem      - Debian 12 (稳定推荐) / Debian 13 (Trixie) / Debian 11 (Bullseye)
+rem      - Debian 12 (稳定推荐) / Debian 13 [Trixie] / Debian 11 [Bullseye]
 rem      - Ubuntu 24.04 LTS (Noble) / Ubuntu 26.04 LTS (Resolute)
 rem      - 模式 A: 极速原版直装 (适合普通 VPS / 阿里云 / 腾讯云 / 物理机)
 rem      - 模式 B: 移动云电脑专用 Alpine 中转模式 (NodeSeek 69759 方案，极高容错，防断网)
@@ -88,7 +88,7 @@ echo.
 echo 选项说明:
 echo   -o, --os ^<系统^>           目标操作系统 (可选: debian, ubuntu, 默认: debian)
 echo   -v, --version ^<版本^>       系统版本:
-echo                                Debian: 12 (默认), 13 (Trixie), 11 (Bullseye)
+echo                                Debian: 12 (默认), 13 [Trixie], 11 [Bullseye]
 echo                                Ubuntu: 24.04 (或 24), 26.04 (或 26), 22.04
 echo   -p, --password ^<密码^>      Linux root 登录密码 (留空则随机生成)
 echo   -P, --port ^<端口^>          SSH 服务连接端口 (默认: 22)
@@ -136,9 +136,9 @@ if /i "!TARGET_OS!"=="ubuntu" (
     set "TARGET_OS=debian"
     if "!OS_VER!"=="" set "OS_VER=12"
     if "!OS_VER!"=="13" (
-        set "OS_DISPLAY=Debian 13 (Trixie)"
+        set "OS_DISPLAY=Debian 13 [Trixie]"
     ) else if "!OS_VER!"=="11" (
-        set "OS_DISPLAY=Debian 11 (Bullseye)"
+        set "OS_DISPLAY=Debian 11 [Bullseye]"
     ) else (
         set "OS_DISPLAY=Debian !OS_VER!"
     )
@@ -204,7 +204,7 @@ echo     5) Ubuntu 26.04 LTS (Resolute - 最新长期支持版)
 echo.
 echo   【移动云电脑稳妥中转模式 (NodeSeek #69759 推荐方案，100%% 成功率)】
 echo     6) Alpine 中转 -^> Debian 12 (移动云电脑推荐首选)
-echo     7) Alpine 中转 -^> Debian 13 (Trixie)
+echo     7) Alpine 中转 -^> Debian 13 [Trixie]
 echo     8) Alpine 中转 -^> Ubuntu 24.04 LTS
 echo     9) Alpine 中转 -^> Ubuntu 26.04 LTS
 echo.
@@ -213,12 +213,12 @@ if "!mode_choice!"=="2" (
     set "INSTALL_MODE=direct"
     set "TARGET_OS=debian"
     set "OS_VER=13"
-    set "OS_DISPLAY=Debian 13 (Trixie)"
+    set "OS_DISPLAY=Debian 13 [Trixie]"
 ) else if "!mode_choice!"=="3" (
     set "INSTALL_MODE=direct"
     set "TARGET_OS=debian"
     set "OS_VER=11"
-    set "OS_DISPLAY=Debian 11 (Bullseye)"
+    set "OS_DISPLAY=Debian 11 [Bullseye]"
 ) else if "!mode_choice!"=="4" (
     set "INSTALL_MODE=direct"
     set "TARGET_OS=ubuntu"
@@ -238,7 +238,7 @@ if "!mode_choice!"=="2" (
     set "INSTALL_MODE=alpine"
     set "TARGET_OS=debian"
     set "OS_VER=13"
-    set "OS_DISPLAY=Debian 13 (Trixie)"
+    set "OS_DISPLAY=Debian 13 [Trixie]"
 ) else if "!mode_choice!"=="8" (
     set "INSTALL_MODE=alpine"
     set "TARGET_OS=ubuntu"
@@ -269,22 +269,22 @@ echo [第 4 步: 设置 SSH 服务端口]
 set /p input_port="请输入 SSH 端口 [默认: 22]: "
 if not "!input_port!"=="" set "SSH_PORT=!input_port!"
 
-if "!INSTALL_MODE!"=="alpine" (
-    echo.
-    echo ----------------------------------------------------------------
-    echo [可选: 内网穿透配置] (针对移动云电脑/无公网 IP 机器)
-    echo 提示: 移动云电脑通常处于内网，DD 到 Linux 后可通过 ZeroTier 组网连入。
-    set /p input_zt="请输入 ZeroTier Network ID [没有请直接回车跳过]: "
-    if not "!input_zt!"=="" set "ZEROTIER_ID=!input_zt!"
-)
+if not "!INSTALL_MODE!"=="alpine" goto skip_zerotier_prompt
+echo.
+echo ----------------------------------------------------------------
+echo [可选: 内网穿透配置] [针对移动云电脑/无公网 IP 机器]
+echo 提示: 移动云电脑通常处于内网，DD 到 Linux 后可通过 ZeroTier 组网连入。
+set /p input_zt="请输入 ZeroTier Network ID [没有请直接回车跳过]: "
+if not "!input_zt!"=="" set "ZEROTIER_ID=!input_zt!"
+:skip_zerotier_prompt
 
 :skip_interactive
 
 if "%ROOT_PASS%"=="" (
     if "!TARGET_OS!"=="ubuntu" (
-        set "ROOT_PASS=Ubuntu@2026Secure!"
+        set "ROOT_PASS=Ubuntu@2026Secure"
     ) else (
-        set "ROOT_PASS=Debian@2026Secure!"
+        set "ROOT_PASS=Debian@2026Secure"
     )
 )
 
@@ -293,18 +293,13 @@ cls
 echo ================================================================
 echo                     高 危 操 作 确 认 提 示
 echo ================================================================
-echo  目标操作系统:   !OS_DISPLAY! (64位 Linux)
-if "%INSTALL_MODE%"=="alpine" (
-echo  安装路线规划:   Windows -^> Alpine 3.18 中转 -^> !OS_DISPLAY! (稳妥两段式)
-) else (
-echo  安装路线规划:   Windows -^> !OS_DISPLAY! 极速一步直装
-)
+echo  目标操作系统:   !OS_DISPLAY! [64位 Linux]
+if "%INSTALL_MODE%"=="alpine" echo  安装路线规划:   Windows -^> Alpine 3.18 中转 -^> !OS_DISPLAY! [稳妥两段式]
+if not "%INSTALL_MODE%"=="alpine" echo  安装路线规划:   Windows -^> !OS_DISPLAY! 极速一步直装
 echo  SSH 登录账户:   root
 echo  SSH 登录密码:   %ROOT_PASS%
 echo  SSH 连接端口:   %SSH_PORT%
-if not "%ZEROTIER_ID%"=="" (
-echo  ZeroTier 组网:  %ZEROTIER_ID%
-)
+if not "%ZEROTIER_ID%"=="" echo  ZeroTier 组网:  %ZEROTIER_ID%
 echo  工作缓存目录:   %WORK_DIR%
 echo ================================================================
 echo [警告] 确认执行后，系统将格式化 C 盘并重构引导环境！
@@ -312,29 +307,41 @@ echo [警告] 硬盘中的所有原有 Windows 数据将永久丢失，请确认
 echo ================================================================
 echo.
 
-if "%AUTO_CONFIRM%"=="false" (
-    echo 请确认是否立即执行重装？
-    set /p confirm="输入 Y 确认执行，按其他键退出: "
-    if /i not "!confirm!"=="Y" (
-        echo [INFO] 用户取消操作，退出脚本。
-        pause
-        exit /b 0
-    )
-)
+if /i "%AUTO_CONFIRM%"=="true" goto do_install_confirm
 
+echo 请确认是否立即执行重装？
+set "confirm="
+set /p confirm="输入 Y 确认执行，按其他键退出: "
+if /i "!confirm!"=="Y" goto do_install_confirm
+if /i "!confirm!"=="YES" goto do_install_confirm
+if /i "!confirm!"=="y" goto do_install_confirm
+
+echo.
+echo [INFO] 用户取消操作，退出脚本。
+pause
+exit /b 0
+
+:do_install_confirm
 rem ----------------- 下载或获取核心重装引擎 -----------------
 echo.
-echo [2/5] 正在拉取底层引导与重装核心 (reinstall.bat)...
+echo [2/5] 正在准备底层引导与重装核心 [reinstall.bat]...
+
+rem 预生成 geoip 避免 reinstall.bat 内置 certutil 出现 0x80072f8f 证书错误
+if "%IS_CHINA%"=="true" (
+    echo loc=CN> "%WORK_DIR%\geoip"
+) else (
+    echo loc=US> "%WORK_DIR%\geoip"
+)
 
 rem 1. 优先使用当前目录已有的 reinstall.bat
 if exist "%~dp0reinstall.bat" (
     echo [INFO] 检测到本地目录存在 reinstall.bat，正在直接同步到工作区...
-    copy /y "%~dp0reinstall.bat" "%WORK_DIR%\reinstall.bat" >nul 2>&1
+    copy /y "%~dp0reinstall.bat" "%WORK_DIR%einstall.bat" >nul 2>&1
 )
 
 rem 2. 若工作区已存在且有效，直接复用（切勿重复下载或删除）
-if exist "%WORK_DIR%\reinstall.bat" (
-    echo [INFO] 底层重装核心 (reinstall.bat) 已就绪，直接使用。
+if exist "%WORK_DIR%einstall.bat" (
+    echo [INFO] 底层重装核心 [reinstall.bat] 已就绪，直接使用。
     goto skip_download_reinstall
 )
 
@@ -345,127 +352,135 @@ set "SRC3=https://raw.gitmirror.com/bin456789/reinstall/main/reinstall.bat"
 set "SRC4=https://raw.githubusercontent.com/bin456789/reinstall/main/reinstall.bat"
 
 where curl >nul 2>&1
-if %errorlevel% equ 0 (
-    curl -k -s -L -f -o "%WORK_DIR%\reinstall.bat" "%SRC1%" >nul 2>&1
-    if not exist "%WORK_DIR%\reinstall.bat" curl -k -s -L -f -o "%WORK_DIR%\reinstall.bat" "%SRC2%" >nul 2>&1
-    if not exist "%WORK_DIR%\reinstall.bat" curl -k -s -L -f -o "%WORK_DIR%\reinstall.bat" "%SRC3%" >nul 2>&1
-    if not exist "%WORK_DIR%\reinstall.bat" curl -k -s -L -f -o "%WORK_DIR%\reinstall.bat" "%SRC4%" >nul 2>&1
+if !errorlevel! equ 0 (
+    curl -k -s -L -f -o "%WORK_DIR%einstall.bat" "%SRC1%" >nul 2>&1
+    if not exist "%WORK_DIR%einstall.bat" curl -k -s -L -f -o "%WORK_DIR%einstall.bat" "%SRC2%" >nul 2>&1
+    if not exist "%WORK_DIR%einstall.bat" curl -k -s -L -f -o "%WORK_DIR%einstall.bat" "%SRC3%" >nul 2>&1
+    if not exist "%WORK_DIR%einstall.bat" curl -k -s -L -f -o "%WORK_DIR%einstall.bat" "%SRC4%" >nul 2>&1
 )
 
-if not exist "%WORK_DIR%\reinstall.bat" (
-    certutil -urlcache -f -split "%SRC1%" "%WORK_DIR%\reinstall.bat" >nul 2>&1
-)
-if not exist "%WORK_DIR%\reinstall.bat" (
-    certutil -urlcache -f -split "%SRC2%" "%WORK_DIR%\reinstall.bat" >nul 2>&1
-)
-if not exist "%WORK_DIR%\reinstall.bat" (
-    certutil -urlcache -f -split "%SRC3%" "%WORK_DIR%\reinstall.bat" >nul 2>&1
-)
+if not exist "%WORK_DIR%einstall.bat" certutil -urlcache -f -split "%SRC1%" "%WORK_DIR%einstall.bat" >nul 2>&1
+if not exist "%WORK_DIR%einstall.bat" certutil -urlcache -f -split "%SRC2%" "%WORK_DIR%einstall.bat" >nul 2>&1
+if not exist "%WORK_DIR%einstall.bat" certutil -urlcache -f -split "%SRC3%" "%WORK_DIR%einstall.bat" >nul 2>&1
 
-if not exist "%WORK_DIR%\reinstall.bat" (
-    echo [WARN] 正在启用 PowerShell 安全通道拉取组件...
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = 3072; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}; try { (New-Object System.Net.WebClient).DownloadFile('%SRC1%', '%WORK_DIR%\reinstall.bat') } catch { (New-Object System.Net.WebClient).DownloadFile('%SRC2%', '%WORK_DIR%\reinstall.bat') }" >nul 2>&1
-)
+if exist "%WORK_DIR%einstall.bat" goto skip_ps_download
+echo [WARN] 正在启用 PowerShell 安全通道拉取组件...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = 3072; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {}; try { (New-Object System.Net.WebClient).DownloadFile('%SRC1%', '%WORK_DIR%\reinstall.bat') } catch { (New-Object System.Net.WebClient).DownloadFile('%SRC2%', '%WORK_DIR%\reinstall.bat') }" >nul 2>&1
+:skip_ps_download
 
 rem 4. 若所有网络下载均受阻，直接从内置模块自解包（零网络依赖兜底）
-if not exist "%WORK_DIR%\reinstall.bat" (
-    call :extract_embedded_reinstall
-)
+if not exist "%WORK_DIR%einstall.bat" call :extract_embedded_reinstall
 
-if not exist "%WORK_DIR%\reinstall.bat" (
-    echo.
-    echo ================================================================
-    echo [ERROR] 获取 reinstall.bat 失败！
-    echo 请检查当前网络连接，或手动下载 reinstall.bat 放入 C:\DD 目录。
-    echo ================================================================
-    pause
-    exit /b 1
-)
+if exist "%WORK_DIR%einstall.bat" goto skip_download_reinstall
+echo.
+echo ================================================================
+echo [ERROR] 获取 reinstall.bat 失败！
+echo 请检查当前网络连接，或手动下载 reinstall.bat 放入 C:\DD 目录。
+echo ================================================================
+pause
+exit /b 1
 
 :skip_download_reinstall
 echo [INFO] 引导引擎组件下载就绪。
 
 rem ----------------- 模式分流执行 -----------------
 echo.
-if "%INSTALL_MODE%"=="alpine" (
-    echo [3/5] 正在配置移动云电脑专用中转引导 (Alpine Linux)...
-    echo [INFO] 正在下发 Alpine 内存微系统引导配置...
-    
-    rem 单行写入，避免任何括号语法歧义
-    echo #!/bin/sh> "%WORK_DIR%\auto-linux.sh"
-    echo # Alpine to !OS_DISPLAY! auto install>> "%WORK_DIR%\auto-linux.sh"
-    echo echo "==================================================">> "%WORK_DIR%\auto-linux.sh"
-    echo echo "  正在准备 !OS_DISPLAY! 自动重装环境...">> "%WORK_DIR%\auto-linux.sh"
-    echo echo "==================================================">> "%WORK_DIR%\auto-linux.sh"
-    echo apk update>> "%WORK_DIR%\auto-linux.sh"
-    echo apk add wget curl bash>> "%WORK_DIR%\auto-linux.sh"
-    echo echo "正在拉取官方安装引擎...">> "%WORK_DIR%\auto-linux.sh"
-    echo wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' ^|^| wget --no-check-certificate -qO InstallNET.sh 'https://gitee.com/mb9e8j2/Tools/raw/master/Linux_reinstall/InstallNET.sh'>> "%WORK_DIR%\auto-linux.sh"
-    echo chmod +x InstallNET.sh>> "%WORK_DIR%\auto-linux.sh"
-    echo echo "正在启动 !OS_DISPLAY! 安装 (root 密码: %ROOT_PASS%, 端口: %SSH_PORT%)...">> "%WORK_DIR%\auto-linux.sh"
-    echo bash InstallNET.sh -%TARGET_OS% %OS_VER% -pwd '%ROOT_PASS%' -port %SSH_PORT%>> "%WORK_DIR%\auto-linux.sh"
-    echo echo "安装配置已下发，正在自动重启...">> "%WORK_DIR%\auto-linux.sh"
-    echo reboot>> "%WORK_DIR%\auto-linux.sh"
+if /i "%INSTALL_MODE%"=="alpine" goto do_alpine_mode
+goto do_direct_mode
 
-    copy /y "%WORK_DIR%\auto-linux.sh" "%WORK_DIR%\auto-debian.sh" >nul 2>&1
+:do_alpine_mode
+echo [3/5] 正在配置移动云电脑专用中转引导 [Alpine Linux]...
+echo [INFO] 正在下发 Alpine 内存微系统引导配置...
 
-    echo [INFO] 正在调用底层批处理生成 Grub/EFI 引导...
-    call "%WORK_DIR%\reinstall.bat" alpine-3.18
-    
-    cls
-    echo ================================================================
-    echo        移动云电脑中转引导配置成功！即将自动重启
-    echo ================================================================
-    echo 【移动云电脑操作指引 - NodeSeek #69759 总结】
-    echo.
-    echo  1. 重启后，请在【移动云电脑官方客户端】内观察画面；
-    echo  2. 稍等 1~2 分钟进入 Alpine 终端（屏幕显示: localhost login:）;
-    echo  3. 登录用户名: root  ^|  默认登录密码: 123@@@
-    echo  4. 登录后只需粘贴执行以下单行命令（全自动转入 !OS_DISPLAY!）：
-    echo.
-    if "%IS_CHINA%"=="true" (
+echo #!/bin/sh> "%WORK_DIR%uto-linux.sh"
+echo # Alpine to !OS_DISPLAY! auto install>> "%WORK_DIR%uto-linux.sh"
+echo echo "==================================================">> "%WORK_DIR%uto-linux.sh"
+echo echo "  正在准备 !OS_DISPLAY! 自动重装环境...">> "%WORK_DIR%uto-linux.sh"
+echo echo "==================================================">> "%WORK_DIR%uto-linux.sh"
+echo apk update>> "%WORK_DIR%uto-linux.sh"
+echo apk add wget curl bash>> "%WORK_DIR%uto-linux.sh"
+echo echo "正在拉取官方安装引擎...">> "%WORK_DIR%uto-linux.sh"
+echo wget --no-check-certificate -qO InstallNET.sh 'https://raw.githubusercontent.com/leitbogioro/Tools/master/Linux_reinstall/InstallNET.sh' ^|^| wget --no-check-certificate -qO InstallNET.sh 'https://gitee.com/mb9e8j2/Tools/raw/master/Linux_reinstall/InstallNET.sh'>> "%WORK_DIR%uto-linux.sh"
+echo chmod +x InstallNET.sh>> "%WORK_DIR%uto-linux.sh"
+echo echo "正在启动 !OS_DISPLAY! 安装 [root 密码: %ROOT_PASS%, 端口: %SSH_PORT%]...">> "%WORK_DIR%uto-linux.sh"
+echo bash InstallNET.sh -%TARGET_OS% %OS_VER% -pwd '%ROOT_PASS%' -port %SSH_PORT%>> "%WORK_DIR%uto-linux.sh"
+echo echo "安装配置已下发，正在自动重启...">> "%WORK_DIR%uto-linux.sh"
+echo reboot>> "%WORK_DIR%uto-linux.sh"
+
+copy /y "%WORK_DIR%uto-linux.sh" "%WORK_DIR%uto-debian.sh" >nul 2>&1
+
+echo [INFO] 正在调用底层批处理生成 Grub/EFI 引导...
+call "%WORK_DIR%einstall.bat" alpine-3.18
+if !errorlevel! equ 0 goto alpine_success
+echo.
+echo ================================================================
+echo [ERROR] 引导工具执行失败，退出代码: !errorlevel!
+echo 请检查上方执行日志，按任意键退出...
+echo ================================================================
+pause
+exit /b !errorlevel!
+
+:alpine_success
+cls
+echo ================================================================
+echo        移动云电脑中转引导配置成功！即将自动重启
+echo ================================================================
+echo 【移动云电脑操作指引 - NodeSeek #69759 总结】
+echo.
+echo  1. 重启后，请在【移动云电脑官方客户端】内观察画面；
+echo  2. 稍等 1~2 分钟进入 Alpine 终端 [屏幕显示: localhost login:]；
+echo  3. 登录用户名: root  ^|  默认登录密码: 123@@@
+echo  4. 登录后只需粘贴执行以下单行命令（全自动转入 !OS_DISPLAY!）：
+echo.
+if "%IS_CHINA%"=="true" (
     echo     apk add wget curl bash ^&^& wget -qO- https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/alpine-to-debian.sh ^| bash -s -- -o %TARGET_OS% -v %OS_VER% -p "%ROOT_PASS%" -P %SSH_PORT%
-    ) else (
-    echo     apk add wget curl bash ^&^& wget -qO- https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/alpine-to-debian.sh ^| bash -s -- -o %TARGET_OS% -v %OS_VER% -p "%ROOT_PASS%" -P %SSH_PORT%
-    )
-    echo.
-    echo  5. 系统将全自动完成 !OS_DISPLAY! 安装！
-    echo     * 最终 root 密码: %ROOT_PASS%
-    echo     * 最终 SSH 端口:  %SSH_PORT%
-    if not "%ZEROTIER_ID%"=="" (
-    echo     * ZeroTier 组网:  %ZEROTIER_ID%
-    )
-    echo ================================================================
-    echo.
-    echo 系统将在 10 秒后自动重启...
-    timeout /t 10
-    shutdown /r /t 0
-    exit /b 0
-
 ) else (
-    echo [3/5] 正在配置 !OS_DISPLAY! 极速直装引导...
-    echo [INFO] 注入 root 密码与 SSH 端口参数...
-    
-    call "%WORK_DIR%\reinstall.bat" %TARGET_OS% %OS_VER% --password "%ROOT_PASS%" --ssh-port %SSH_PORT%
-    
-    cls
-    echo ================================================================
-    echo               !OS_DISPLAY! 重装引导配置就绪！
-    echo ================================================================
-    echo  目标系统:   !OS_DISPLAY!
-    echo  SSH 登录账户: root
-    echo  SSH 登录密码: %ROOT_PASS%
-    echo  SSH 远程端口: %SSH_PORT%
-    echo ----------------------------------------------------------------
-    echo 预计安装耗时: 5 ~ 15 分钟 (视网络下载与磁盘性能而定)
-    echo 安装完成后，即可直接使用 SSH 工具连接服务器！
-    echo ================================================================
-    echo.
-    echo 系统将在 10 秒后自动重启开始安装...
-    timeout /t 10
-    shutdown /r /t 0
-    exit /b 0
+    echo     apk add wget curl bash ^&^& wget -qO- https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/alpine-to-debian.sh ^| bash -s -- -o %TARGET_OS% -v %OS_VER% -p "%ROOT_PASS%" -P %SSH_PORT%
 )
+echo.
+echo  5. 系统将全自动完成 !OS_DISPLAY! 安装！
+echo     * 最终 root 密码: %ROOT_PASS%
+echo     * 最终 SSH 端口:  %SSH_PORT%
+if not "%ZEROTIER_ID%"=="" echo     * ZeroTier 组网:  %ZEROTIER_ID%
+echo ================================================================
+echo.
+echo 系统将在 10 秒后自动重启...
+timeout /t 10
+shutdown /r /t 0
+exit /b 0
+
+:do_direct_mode
+echo [3/5] 正在配置 !OS_DISPLAY! 极速直装引导...
+echo [INFO] 注入 root 密码与 SSH 端口参数...
+
+call "%WORK_DIR%einstall.bat" %TARGET_OS% %OS_VER% --password "%ROOT_PASS%" --ssh-port %SSH_PORT%
+if !errorlevel! equ 0 goto direct_success
+echo.
+echo ================================================================
+echo [ERROR] 直装引导配置失败，退出代码: !errorlevel!
+echo 请检查上方执行日志，按任意键退出...
+echo ================================================================
+pause
+exit /b !errorlevel!
+
+:direct_success
+cls
+echo ================================================================
+echo               !OS_DISPLAY! 重装引导配置就绪！
+echo ================================================================
+echo  目标系统:   !OS_DISPLAY!
+echo  SSH 登录账户: root
+echo  SSH 登录密码: %ROOT_PASS%
+echo  SSH 远程端口: %SSH_PORT%
+echo ----------------------------------------------------------------
+echo 预计安装耗时: 5 ~ 15 分钟 [视网络下载与磁盘性能而定]
+echo 安装完成后，即可直接使用 SSH 工具连接服务器！
+echo ================================================================
+echo.
+echo 系统将在 10 秒后自动重启开始安装...
+timeout /t 10
+shutdown /r /t 0
+exit /b 0
 
 :extract_embedded_reinstall
 echo [INFO] 正在从内置数据包自解包释放 reinstall.bat 核心...
@@ -605,27 +620,36 @@ echo YWRzDQpyZW0gYml0c2FkbWluIC90cmFuc2ZlciAiJX4zIiAvcHJpb3JpdHkgZm9yZWdyb3VuZCA
 echo fjEgJX4yDQoNCjpkb3dubG9hZA0KcmVtIGNlcnR1dGlsIOS8muiiqyB3aW5kb3dzIERlZmVuZGVy
 echo IOaKpeavkg0KcmVtIHdpbmRvd3Mgc2VydmVyIDIwMTkg6KaB55So56ys5LqM5p2hIGNlcnR1dGls
 echo IOWRveS7pA0KZWNobyBEb3dubG9hZGluZzogJX4xICV+Mg0KZGVsIC9xICIlfjIiIDI+bnVsDQpp
-echo ZiBleGlzdCAiJX4yIiAoZWNobyBDYW5ub3QgZGVsZXRlICV+MiAmIGV4aXQgL2IgMSkNCg0KY2Vy
-echo dHV0aWwgLXVybGNhY2hlIC1mIC1zcGxpdCAiJX4xIiAiJX4yIiA+bnVsDQppZiBub3QgZXJyb3Js
-echo ZXZlbCAxIGlmIGV4aXN0ICIlfjIiIGV4aXQgL2IgMA0KDQpjZXJ0dXRpbCAtdXJsY2FjaGUgLXNw
-echo bGl0ICIlfjEiICIlfjIiID5udWwNCmlmIG5vdCBlcnJvcmxldmVsIDEgaWYgZXhpc3QgIiV+MiIg
-echo ZXhpdCAvYiAwDQoNCnJlbSDkuIvovb3lpLHotKXml7bliKDpmaTmlofku7bvvIzpmLLmraLkuIvo
-echo vb3kuobkuIDpg6jliIblr7zoh7TkuIvmrKHov5DooYzml7bot7Pov4fkuobkuIvovb0NCmRlbCAv
-echo cSAiJX4yIiAyPm51bA0KZXhpdCAvYiAxDQoNCjpkb3dubG9hZF93aXRoX2N1cmwNCnJlbSDliqAg
-echo LS1pbnNlY3VyZSDpmLLmraLku6XkuIvplJnor68NCnJlbSBjdXJsOiAoNzcpIGVycm9yIHNldHRp
-echo bmcgY2VydGlmaWNhdGUgdmVyaWZ5IGxvY2F0aW9uczoNCnJlbSAgIENBZmlsZTogL2V0Yy9zc2wv
-echo Y2VydHMvY2EtY2VydGlmaWNhdGVzLmNydA0KcmVtICAgQ0FwYXRoOiBub25lDQplY2hvIERvd25s
-echo b2FkOiAlfjEgJX4yDQolU3lzdGVtRHJpdmUlXGN5Z3dpblxiaW5cY3VybCAtTCAtLWluc2VjdXJl
-echo ICIlfjEiIC1vICIlfjIiDQpleGl0IC9iDQoNCjpjaG1vZA0KJVN5c3RlbURyaXZlJVxjeWd3aW5c
-echo YmluXGNobW9kICIlfjEiICIlfjIiDQpleGl0IC9iDQoNCjpkb3dubG9hZF9mYWlsZWQNCmVjaG8g
-echo RG93bmxvYWQgZmFpbGVkLg0KZXhpdCAvYiAxDQoNCjppbnN0YWxsX2N5Z3dpbl9mYWlsZWQNCmVj
-echo aG8gRmFpbGVkIHRvIGluc3RhbGwgQ3lnd2luLg0KZXhpdCAvYiAxDQoNCjpjaGVja19jeWd3aW5f
-echo aW5zdGFsbGVkDQpzZXQgImNtZHNfc3BhY2U9JWNtZHM6LD0gJSINCmZvciAlJWMgaW4gKCVjbWRz
-echo X3NwYWNlJSkgZG8gKA0KICAgIGlmIG5vdCBleGlzdCAiJVN5c3RlbURyaXZlJVxjeWd3aW5cYmlu
-echo XCUlYyIgaWYgbm90IGV4aXN0ICIlU3lzdGVtRHJpdmUlXGN5Z3dpblxiaW5cJSVjLmV4ZSIgKA0K
-echo ICAgICAgICBleGl0IC9iIDENCiAgICApDQopDQpleGl0IC9iIDANCg==
+echo ZiBleGlzdCAiJX4yIiAoZWNobyBDYW5ub3QgZGVsZXRlICV+MiAmIGV4aXQgL2IgMSkNCg0Kd2hl
+echo cmUgY3VybCA+bnVsIDI+JjENCmlmIG5vdCBlcnJvcmxldmVsIDEgKA0KICAgIGN1cmwgLWsgLXMg
+echo LUwgLWYgLW8gIiV+MiIgIiV+MSIgPm51bCAyPiYxDQogICAgaWYgbm90IGVycm9ybGV2ZWwgMSBp
+echo ZiBleGlzdCAiJX4yIiBleGl0IC9iIDANCikNCg0KY2VydHV0aWwgLXVybGNhY2hlIC1mIC1zcGxp
+echo dCAiJX4xIiAiJX4yIiA+bnVsIDI+JjENCmlmIG5vdCBlcnJvcmxldmVsIDEgaWYgZXhpc3QgIiV+
+echo MiIgZXhpdCAvYiAwDQoNCmNlcnR1dGlsIC11cmxjYWNoZSAtc3BsaXQgIiV+MSIgIiV+MiIgPm51
+echo bCAyPiYxDQppZiBub3QgZXJyb3JsZXZlbCAxIGlmIGV4aXN0ICIlfjIiIGV4aXQgL2IgMA0KDQpw
+echo b3dlcnNoZWxsIC1Ob1Byb2ZpbGUgLUV4ZWN1dGlvblBvbGljeSBCeXBhc3MgLUNvbW1hbmQgIiRQ
+echo cm9ncmVzc1ByZWZlcmVuY2U9J1NpbGVudGx5Q29udGludWUnOyBbTmV0LlNlcnZpY2VQb2ludE1h
+echo bmFnZXJdOjpTZWN1cml0eVByb3RvY29sID0gMzA3MjsgW1N5c3RlbS5OZXQuU2VydmljZVBvaW50
+echo TWFuYWdlcl06OlNlcnZlckNlcnRpZmljYXRlVmFsaWRhdGlvbkNhbGxiYWNrID0geyR0cnVlfTsg
+echo KE5ldy1PYmplY3QgU3lzdGVtLk5ldC5XZWJDbGllbnQpLkRvd25sb2FkRmlsZSgnJX4xJywgJyV+
+echo MicpIiA+bnVsIDI+JjENCmlmIG5vdCBlcnJvcmxldmVsIDEgaWYgZXhpc3QgIiV+MiIgZXhpdCAv
+echo YiAwDQoNCnJlbSDkuIvovb3lpLHotKXml7bliKDpmaTmlofku7bvvIzpmLLmraLkuIvovb3kuobk
+echo uIDpg6jliIblr7zoh7TkuIvmrKHov5DooYzml7bot7Pov4fkuobkuIvovb0NCmRlbCAvcSAiJX4y
+echo IiAyPm51bA0KZXhpdCAvYiAxDQoNCjpkb3dubG9hZF93aXRoX2N1cmwNCnJlbSDliqAgLS1pbnNl
+echo Y3VyZSDpmLLmraLku6XkuIvplJnor68NCnJlbSBjdXJsOiAoNzcpIGVycm9yIHNldHRpbmcgY2Vy
+echo dGlmaWNhdGUgdmVyaWZ5IGxvY2F0aW9uczoNCnJlbSAgIENBZmlsZTogL2V0Yy9zc2wvY2VydHMv
+echo Y2EtY2VydGlmaWNhdGVzLmNydA0KcmVtICAgQ0FwYXRoOiBub25lDQplY2hvIERvd25sb2FkOiAl
+echo fjEgJX4yDQolU3lzdGVtRHJpdmUlXGN5Z3dpblxiaW5cY3VybCAtTCAtLWluc2VjdXJlICIlfjEi
+echo IC1vICIlfjIiDQpleGl0IC9iDQoNCjpjaG1vZA0KJVN5c3RlbURyaXZlJVxjeWd3aW5cYmluXGNo
+echo bW9kICIlfjEiICIlfjIiDQpleGl0IC9iDQoNCjpkb3dubG9hZF9mYWlsZWQNCmVjaG8gRG93bmxv
+echo YWQgZmFpbGVkLg0KZXhpdCAvYiAxDQoNCjppbnN0YWxsX2N5Z3dpbl9mYWlsZWQNCmVjaG8gRmFp
+echo bGVkIHRvIGluc3RhbGwgQ3lnd2luLg0KZXhpdCAvYiAxDQoNCjpjaGVja19jeWd3aW5faW5zdGFs
+echo bGVkDQpzZXQgImNtZHNfc3BhY2U9JWNtZHM6LD0gJSINCmZvciAlJWMgaW4gKCVjbWRzX3NwYWNl
+echo JSkgZG8gKA0KICAgIGlmIG5vdCBleGlzdCAiJVN5c3RlbURyaXZlJVxjeWd3aW5cYmluXCUlYyIg
+echo aWYgbm90IGV4aXN0ICIlU3lzdGVtRHJpdmUlXGN5Z3dpblxiaW5cJSVjLmV4ZSIgKA0KICAgICAg
+echo ICBleGl0IC9iIDENCiAgICApDQopDQpleGl0IC9iIDANCg==
 echo -----END CERTIFICATE-----
-) > "%WORK_DIR%\reinstall.b64"
-certutil -decode "%WORK_DIR%\reinstall.b64" "%WORK_DIR%\reinstall.bat" >nul 2>&1
-del /f /q "%WORK_DIR%\reinstall.b64" >nul 2>&1
+) > "%WORK_DIR%einstall.b64"
+certutil -decode "%WORK_DIR%einstall.b64" "%WORK_DIR%einstall.bat" >nul 2>&1
+del /f /q "%WORK_DIR%einstall.b64" >nul 2>&1
 exit /b 0
