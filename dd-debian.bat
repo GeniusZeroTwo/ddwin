@@ -410,15 +410,17 @@ echo reboot>> "%WORK_DIR%\auto-linux.sh"
 copy /y "%WORK_DIR%\auto-linux.sh" "%WORK_DIR%\auto-debian.sh" >nul 2>&1
 
 echo [INFO] 正在调用底层批处理生成 Grub/EFI 引导...
-call "%WORK_DIR%\reinstall.bat" alpine-3.18
-if !errorlevel! equ 0 goto alpine_success
+call "%WORK_DIR%\reinstall.bat" alpine 3.21 --password "123@@@" --ssh-port %SSH_PORT%
+set "CALL_ERR=!errorlevel!"
+chcp 65001 >nul
+if !CALL_ERR! equ 0 goto alpine_success
 echo.
 echo ================================================================
-echo [ERROR] 引导工具执行失败，退出代码: !errorlevel!
+echo [ERROR] 引导工具执行失败，退出代码: !CALL_ERR!
 echo 请检查上方执行日志，按任意键退出...
 echo ================================================================
 pause
-exit /b !errorlevel!
+exit /b !CALL_ERR!
 
 :alpine_success
 cls
@@ -454,14 +456,16 @@ echo [3/5] 正在配置 !OS_DISPLAY! 极速直装引导...
 echo [INFO] 注入 root 密码与 SSH 端口参数...
 
 call "%WORK_DIR%\reinstall.bat" %TARGET_OS% %OS_VER% --password "%ROOT_PASS%" --ssh-port %SSH_PORT%
-if !errorlevel! equ 0 goto direct_success
+set "CALL_ERR=!errorlevel!"
+chcp 65001 >nul
+if !CALL_ERR! equ 0 goto direct_success
 echo.
 echo ================================================================
-echo [ERROR] 直装引导配置失败，退出代码: !errorlevel!
+echo [ERROR] 直装引导配置失败，退出代码: !CALL_ERR!
 echo 请检查上方执行日志，按任意键退出...
 echo ================================================================
 pause
-exit /b !errorlevel!
+exit /b !CALL_ERR!
 
 :direct_success
 cls
