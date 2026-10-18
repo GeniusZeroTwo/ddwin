@@ -322,44 +322,67 @@ if "%AUTO_CONFIRM%"=="false" (
     )
 )
 
-rem ----------------- 下载核心重装引擎 -----------------
+rem ----------------- 下载或获取核心重装引擎 -----------------
 echo.
 echo [2/5] 正在拉取底层引导与重装核心 (reinstall.bat)...
-set "REINSTALL_URL=https://raw.githubusercontent.com/bin456789/reinstall/main/reinstall.bat"
-if "%IS_CHINA%"=="true" (
-    set "REINSTALL_URL=https://cnb.cool/bin456789/reinstall/-/git/raw/main/reinstall.bat"
-)
-set "REINSTALL_PROXY=https://ghproxy.cc/https://raw.githubusercontent.com/bin456789/reinstall/main/reinstall.bat"
 
-del /f /q "%WORK_DIR%\reinstall.bat" >nul 2>&1
+rem 1. 优先使用当前目录已有的 reinstall.bat
+if exist "%~dp0reinstall.bat" (
+    echo [INFO] 检测到本地目录存在 reinstall.bat，正在直接同步到工作区...
+    copy /y "%~dp0reinstall.bat" "%WORK_DIR%\reinstall.bat" >nul 2>&1
+)
+
+rem 2. 若工作区已存在且有效，直接复用（切勿重复下载或删除）
+if exist "%WORK_DIR%\reinstall.bat" (
+    echo [INFO] 底层重装核心 (reinstall.bat) 已就绪，直接使用。
+    goto skip_download_reinstall
+)
+
+rem 3. 尝试从国内腾讯云 CNB / GitMirror / 官方源高速拉取
+set "SRC1=http://cnb.cool/bin456789/reinstall/-/git/raw/main/reinstall.bat"
+set "SRC2=https://cnb.cool/bin456789/reinstall/-/git/raw/main/reinstall.bat"
+set "SRC3=https://raw.gitmirror.com/bin456789/reinstall/main/reinstall.bat"
+set "SRC4=https://raw.githubusercontent.com/bin456789/reinstall/main/reinstall.bat"
 
 where curl >nul 2>&1
 if %errorlevel% equ 0 (
-    curl -k -s -L -f -o "%WORK_DIR%\reinstall.bat" "%REINSTALL_URL%" >nul 2>&1
-    if not exist "%WORK_DIR%\reinstall.bat" (
-        curl -k -s -L -f -o "%WORK_DIR%\reinstall.bat" "%REINSTALL_PROXY%" >nul 2>&1
-    )
+    curl -k -s -L -f -o "%WORK_DIR%\reinstall.bat" "%SRC1%" >nul 2>&1
+    if not exist "%WORK_DIR%\reinstall.bat" curl -k -s -L -f -o "%WORK_DIR%\reinstall.bat" "%SRC2%" >nul 2>&1
+    if not exist "%WORK_DIR%\reinstall.bat" curl -k -s -L -f -o "%WORK_DIR%\reinstall.bat" "%SRC3%" >nul 2>&1
+    if not exist "%WORK_DIR%\reinstall.bat" curl -k -s -L -f -o "%WORK_DIR%\reinstall.bat" "%SRC4%" >nul 2>&1
 )
 
 if not exist "%WORK_DIR%\reinstall.bat" (
-    certutil -urlcache -f -split "%REINSTALL_URL%" "%WORK_DIR%\reinstall.bat" >nul 2>&1
+    certutil -urlcache -f -split "%SRC1%" "%WORK_DIR%\reinstall.bat" >nul 2>&1
+)
+if not exist "%WORK_DIR%\reinstall.bat" (
+    certutil -urlcache -f -split "%SRC2%" "%WORK_DIR%\reinstall.bat" >nul 2>&1
+)
+if not exist "%WORK_DIR%\reinstall.bat" (
+    certutil -urlcache -f -split "%SRC3%" "%WORK_DIR%\reinstall.bat" >nul 2>&1
 )
 
 if not exist "%WORK_DIR%\reinstall.bat" (
     echo [WARN] 正在启用 PowerShell 安全通道拉取组件...
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}; try { (New-Object System.Net.WebClient).DownloadFile('%REINSTALL_URL%', '%WORK_DIR%\reinstall.bat') } catch { (New-Object System.Net.WebClient).DownloadFile('%REINSTALL_PROXY%', '%WORK_DIR%\reinstall.bat') }" >nul 2>&1
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = 3072; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}; try { (New-Object System.Net.WebClient).DownloadFile('%SRC1%', '%WORK_DIR%\reinstall.bat') } catch { (New-Object System.Net.WebClient).DownloadFile('%SRC2%', '%WORK_DIR%\reinstall.bat') }" >nul 2>&1
+)
+
+rem 4. 若所有网络下载均受阻，直接从内置模块自解包（零网络依赖兜底）
+if not exist "%WORK_DIR%\reinstall.bat" (
+    call :extract_embedded_reinstall
 )
 
 if not exist "%WORK_DIR%\reinstall.bat" (
     echo.
     echo ================================================================
-    echo [ERROR] 下载 reinstall.bat 失败！
-    echo 请检查当前网络连接，或尝试关闭安全软件后再试。
+    echo [ERROR] 获取 reinstall.bat 失败！
+    echo 请检查当前网络连接，或手动下载 reinstall.bat 放入 C:\DD 目录。
     echo ================================================================
     pause
     exit /b 1
 )
 
+:skip_download_reinstall
 echo [INFO] 引导引擎组件下载就绪。
 
 rem ----------------- 模式分流执行 -----------------
@@ -443,3 +466,166 @@ if "%INSTALL_MODE%"=="alpine" (
     shutdown /r /t 0
     exit /b 0
 )
+
+:extract_embedded_reinstall
+echo [INFO] 正在从内置数据包自解包释放 reinstall.bat 核心...
+(
+echo -----BEGIN CERTIFICATE-----
+echo QGVjaG8gb2ZmDQptb2RlIGNvbiBjcCBzZWxlY3Q9NDM3ID5udWwNCnNldGxvY2FsIEVuYWJsZURl
+echo bGF5ZWRFeHBhbnNpb24NCg0Kc2V0IGNvbmZob21lPWh0dHBzOi8vcmF3LmdpdGh1YnVzZXJjb250
+echo ZW50LmNvbS9iaW40NTY3ODkvcmVpbnN0YWxsL21haW4NCnNldCBjb25maG9tZV9jbj1odHRwczov
+echo L2NuYi5jb29sL2JpbjQ1Njc4OS9yZWluc3RhbGwvLS9naXQvcmF3L21haW4NCnJlbSBzZXQgY29u
+echo ZmhvbWVfY249aHR0cHM6Ly93d3cuZ2hwcm94eS5jYy9odHRwczovL3Jhdy5naXRodWJ1c2VyY29u
+echo dGVudC5jb20vYmluNDU2Nzg5L3JlaW5zdGFsbC9tYWluDQoNCnNldCBwa2dzPWN1cmwsY3Bpbyxw
+echo N3ppcCxkb3MydW5peCxqcSx4eixnemlwLHpzdGQsb3BlbnNzbCxiaW5kLXV0aWxzLGxpYmljb252
+echo LGJpbnV0aWxzDQpzZXQgY21kcz1jdXJsLGNwaW8scDd6aXAsZG9zMnVuaXgsanEseHosZ3ppcCx6
+echo c3RkLG9wZW5zc2wsbnNsb29rdXAsaWNvbnYsYXINCg0KcmVtIDY1MDAxIOS7o+eggemhteS8muS5
+echo seeggQ0KDQpyZW0g5LiN6KaB55SoIDo6IOazqOmHig0KcmVtIOWQpuWImeWPr+iDveS8muWHuueO
+echo sCDns7vnu5/mib7kuI3liLDmjIflrprnmoTpqbHliqjlmagNCg0KcmVtIFdpbmRvd3MgNyBTUDEg
+echo d2luaHR0cCDpu5jorqTkuI3mlK/mjIEgdGxzIDEuMg0KcmVtIGh0dHBzOi8vc3VwcG9ydC5taWNy
+echo b3NvZnQuY29tL2VuLXVzL3RvcGljL3VwZGF0ZS10by1lbmFibGUtdGxzLTEtMS1hbmQtdGxzLTEt
+echo Mi1hcy1kZWZhdWx0LXNlY3VyZS1wcm90b2NvbHMtaW4td2luaHR0cC1pbi13aW5kb3dzLWM0YmQ3
+echo M2QyLTMxZDctNzYxZS0wMTc4LTExMjY4YmIxMDM5Mg0KcmVtIOacieS6m+ezu+e7n+agueivgeS5
+echo puayoeabtOaWsA0KcmVtIOaJgOS7peS4jeimgeeUqGh0dHBzDQpyZW0g6L+b5YWl6ISa5pys55uu
+echo 5b2VDQpjZCAvZCAlfmRwMA0KDQpyZW0g5qOA5p+l5piv5ZCm5pyJ566h55CG5ZGY5p2D6ZmQDQpm
+echo bHRtYyA+bnVsIDI+JjENCmlmIGVycm9ybGV2ZWwgMSAoDQogICAgZWNobyBQbGVhc2UgcnVuIGFz
+echo IGFkbWluaXN0cmF0b3JeXiENCiAgICBleGl0IC9iDQopDQoNCnJlbSDmnInml7YgJXRtcCUg5bim
+echo 5Lya6K+dIGlk77yM5LiU5paH5Lu25aS55LiN5a2Y5ZyoDQpyZW0gaHR0cHM6Ly9sZWFybi5taWNy
+echo b3NvZnQuY29tL3Ryb3VibGVzaG9vdC93aW5kb3dzLXNlcnZlci9zaGVsbC1leHBlcmllbmNlL3Rl
+echo bXAtZm9sZGVyLXdpdGgtbG9nb24tc2Vzc2lvbi1pZC1kZWxldGVkDQpyZW0gaWYgbm90IGV4aXN0
+echo ICV0bXAlICgNCnJlbSAgICAgbWQgJXRtcCUNCnJlbSApDQoNCnJlbSDkuIvovb0gZ2VvaXANCmlm
+echo IG5vdCBleGlzdCBnZW9pcCAoDQogICAgcmVtIHd3dy5jbG91ZGZsYXJlLmNvbS9kYXNoLmNsb3Vk
+echo ZmxhcmUuY29tIOWbveWGheiuv+mXrueahOaYr+e+juWbveacjeWKoeWZqO+8jOiAjOS4lOmDqOWI
+echo huWcsOWMuuiiq+WimQ0KICAgIGNhbGwgOmRvd25sb2FkIGh0dHA6Ly93d3cucXVhbGNvbW0uY24v
+echo Y2RuLWNnaS90cmFjZSAlfmRwMGdlb2lwIHx8IGdvdG8gOmRvd25sb2FkX2ZhaWxlZA0KKQ0KDQpy
+echo ZW0g5Yik5pat5piv5ZCm5pyJIGxvYz0NCmZpbmRzdHIgL2M6ImxvYz0iIGdlb2lwID5udWwNCmlm
+echo IGVycm9ybGV2ZWwgMSAoDQogICAgZWNobyBJbnZhbGlkIGdlb2lwIGZpbGUNCiAgICBkZWwgZ2Vv
+echo aXANCiAgICBleGl0IC9iIDENCikNCg0KcmVtIOajgOafpeaYr+WQpuWbveWGhQ0KZmluZHN0ciAv
+echo YzoibG9jPUNOIiBnZW9pcCA+bnVsDQppZiBub3QgZXJyb3JsZXZlbCAxICgNCiAgICByZW0gbWly
+echo cm9ycy50dW5hLnRzaW5naHVhLmVkdS5jbiDkvJrlvLrliLbot7PovawgaHR0cHMNCiAgICBzZXQg
+echo bWlycm9yPWh0dHA6Ly9taXJyb3Iubmp1LmVkdS5jbg0KICAgIGlmIGRlZmluZWQgY29uZmhvbWVf
+echo Y24gKA0KICAgICAgICBzZXQgY29uZmhvbWU9IWNvbmZob21lX2NuIQ0KICAgICkgZWxzZSBpZiBk
+echo ZWZpbmVkIGdpdGh1Yl9wcm94eSAoDQogICAgICAgIGVjaG8gIWNvbmZob21lISB8IGZpbmRzdHIg
+echo L2M6IjovL3Jhdy5naXRodWJ1c2VyY29udGVudC5jb20vIiA+bnVsDQogICAgICAgIGlmIG5vdCBl
+echo cnJvcmxldmVsIDEgKA0KICAgICAgICAgICAgc2V0IGNvbmZob21lPSFjb25maG9tZTpodHRwOi8v
+echo PWh0dHBzOi8vIQ0KICAgICAgICAgICAgc2V0IGNvbmZob21lPSFjb25maG9tZTpodHRwczovL3Jh
+echo dy5naXRodWJ1c2VyY29udGVudC5jb209JWdpdGh1Yl9wcm94eSUhDQogICAgICAgICkNCiAgICAp
+echo DQopIGVsc2UgKA0KICAgIHJlbSDmnI3liqHlmajlnKjnvo7lm70gZXF1aW5peCDmnLrmiL/vvIzk
+echo uI3mmK8gY2RuDQogICAgc2V0IG1pcnJvcj1odHRwOi8vbWlycm9ycy5rZXJuZWwub3JnDQopDQoN
+echo CmNhbGwgOmNoZWNrX2N5Z3dpbl9pbnN0YWxsZWQgfHwgKA0KICAgIHJlbSB3aW4xMCBhcm0g5pSv
+echo 5oyB6L+Q6KGMIHg4NiDova/ku7YNCiAgICByZW0gd2luMTEgYXJtIOaUr+aMgei/kOihjCB4ODYg
+echo 5ZKMIHg4Nl82NCDova/ku7YNCg0KICAgIHJlbSB3aW5kb3dzIDExIDI0aDIg5rKh5pyJIHdtaWMN
+echo CiAgICByZW0gd21pYyBvcyBnZXQgb3NhcmNoaXRlY3R1cmUg5pi+56S65Lit5paH77yM5Y2z5L2/
+echo 6K6+572u5LqGIG1vZGUgY29uIGNwIHNlbGVjdD00MzcNCiAgICByZW0gd21pYyBDb21wdXRlclN5
+echo c3RlbSBnZXQgU3lzdGVtVHlwZSDmmL7npLroi7HmlocNCiAgICByZW0gZm9yIC9mICJ0b2tlbnM9
+echo KiIgJSVhIGluICgnd21pYyBDb21wdXRlclN5c3RlbSBnZXQgU3lzdGVtVHlwZSBefCBmaW5kIC9p
+echo ICJiYXNlZCInKSBkbyAoDQogICAgcmVtICAgICBzZXQgIlN5c3RlbVR5cGU9JSVhIg0KICAgIHJl
+echo bSApDQoNCiAgICByZW0g5pyJ55qE57O757uf57K+566A5LqGIHBvd2Vyc2hlbGwNCiAgICByZW0g
+echo Zm9yIC9mICJkZWxpbXM9IiAlJWEgaW4gKCdwb3dlcnNoZWxsIC1Ob0xvZ28gLU5vUHJvZmlsZSAt
+echo Tm9uSW50ZXJhY3RpdmUgLUNvbW1hbmQgIihHZXQtV21pT2JqZWN0IHdpbjMyX2NvbXB1dGVyc3lz
+echo dGVtKS5TeXN0ZW1UeXBlIicpIGRvICgNCiAgICByZW0gICAgIHNldCAiU3lzdGVtVHlwZT0lJWEi
+echo DQogICAgcmVtICkNCg0KICAgIHJlbSBTeXN0ZW1BcmNoDQogICAgZm9yIC9mICJ0b2tlbnM9MyIg
+echo JSVhIGluICgncmVnIHF1ZXJ5ICJIS0xNXFNZU1RFTVxDdXJyZW50Q29udHJvbFNldFxDb250cm9s
+echo XFNlc3Npb24gTWFuYWdlclxFbnZpcm9ubWVudCIgL3YgUFJPQ0VTU09SX0FSQ0hJVEVDVFVSRScp
+echo IGRvICgNCiAgICAgICAgc2V0IFN5c3RlbUFyY2g9JSVhDQogICAgKQ0KDQogICAgcmVtIOS5n+WP
+echo r+S7peeUqCBQUk9DRVNTT1JfQVJDSElURVc2NDMyIOWSjCBQUk9DRVNTT1JfQVJDSElURUNUVVJF
+echo IOWIpOaWrQ0KICAgIHJlbSBBUk02NCB3aW4xMSAgUFJPQ0VTU09SX0FSQ0hJVEVXNjQzMiAgIFBS
+echo T0NFU1NPUl9BUkNISVRFQ1RVUkUNCiAgICByZW0g5Y6f55SfY21kICAgICAgICAgIOacquWumuS5
+echo iSAgICAgICAgICAgICAgICAgICAgICBBUk02NA0KICAgIHJlbSAzMuS9jWNtZCAgICAgICAgICBB
+echo Uk02NCAgICAgICAgICAgICAgICAgICAgICAgeDg2DQoNCiAgICByZW0gaWYgZGVmaW5lZCBQUk9D
+echo RVNTT1JfQVJDSElURVc2NDMyICgNCiAgICByZW0gICAgIHNldCAiU3lzdGVtQXJjaD0lUFJPQ0VT
+echo U09SX0FSQ0hJVEVXNjQzMiUiDQogICAgcmVtICkgZWxzZSAoDQogICAgcmVtICAgICBzZXQgIlN5
+echo c3RlbUFyY2g9JVBST0NFU1NPUl9BUkNISVRFQ1RVUkUlIg0KICAgIHJlbSApDQoNCiAgICByZW0g
+echo QnVpbGROdW1iZXINCiAgICBmb3IgL2YgInRva2Vucz0zIiAlJWEgaW4gKCdyZWcgcXVlcnkgIkhL
+echo TE1cU09GVFdBUkVcTWljcm9zb2Z0XFdpbmRvd3MgTlRcQ3VycmVudFZlcnNpb24iIC92IEN1cnJl
+echo bnRCdWlsZE51bWJlcicpIGRvICgNCiAgICAgICAgc2V0IC9hIEJ1aWxkTnVtYmVyPSUlYQ0KICAg
+echo ICkNCg0KICAgIHNldCBDeWd3aW5FT0w9MQ0KDQogICAgZWNobyAhU3lzdGVtQXJjaCEgfCBmaW5k
+echo ICJBUk0iID4gbnVsDQogICAgaWYgbm90IGVycm9ybGV2ZWwgMSAoDQogICAgICAgIGlmICFCdWls
+echo ZE51bWJlciEgR0VRIDIyMDAwICgNCiAgICAgICAgICAgIHNldCBDeWd3aW5FT0w9MA0KICAgICAg
+echo ICApDQogICAgKSBlbHNlICgNCiAgICAgICAgZWNobyAhU3lzdGVtQXJjaCEgfCBmaW5kICJBTUQ2
+echo NCIgPiBudWwNCiAgICAgICAgaWYgbm90IGVycm9ybGV2ZWwgMSAoDQogICAgICAgICAgICBpZiAh
+echo QnVpbGROdW1iZXIhIEdFUSA5NjAwICgNCiAgICAgICAgICAgICAgICBzZXQgQ3lnd2luRU9MPTAN
+echo CiAgICAgICAgICAgICkNCiAgICAgICAgKQ0KICAgICkNCg0KICAgIHJlbSB3aW43LzggY3lnd2lu
+echo IOW3siBFT0zvvIzkuI3og73nlKjmnIDmlrAgY3lnd2luIOa6kO+8jOiAjOimgeeUqCBDeWd3aW4g
+echo VGltZSBNYWNoaW5lIOa6kA0KICAgIHJlbSDkvYYgQ3lnd2luIFRpbWUgTWFjaGluZSDmsqHmnInl
+echo m73lhoXmupANCiAgICByZW0g5Li65LqG5L+d6K+B5Zu95YaF5LiL6L296YCf5bqmLCBjeWd3aW4g
+echo RU9MIOe7n+S4gOS9v+eUqCBjeWd3aW4tYXJjaGl2ZSB4ODYg5rqQDQogICAgaWYgIUN5Z3dpbkVP
+echo TCEgPT0gMSAoDQogICAgICAgIHNldCBDeWd3aW5BcmNoPXg4Ng0KICAgICAgICBzZXQgZGlyPS9z
+echo b3VyY2V3YXJlL2N5Z3dpbi1hcmNoaXZlLzIwMjIxMTIzDQogICAgKSBlbHNlICgNCiAgICAgICAg
+echo c2V0IEN5Z3dpbkFyY2g9eDg2XzY0DQogICAgICAgIHNldCBkaXI9L3NvdXJjZXdhcmUvY3lnd2lu
+echo DQogICAgKQ0KDQogICAgcmVtIGRhb2Nsb3VkIOWKoOmAn+aciSA5MCDlpKnnvJPlrZjvvIzkuJTk
+echo uI3mlK/mjIEgSVB2Ng0KICAgIHJlbSBodHRwczovL2dpdGh1Yi5jb20vRGFvQ2xvdWQvcHVibGlj
+echo LWJpbmFyeS1maWxlcy1taXJyb3INCiAgICByZW0g5peg5rOV55So5p+l6K+i5a2X56ym5Liy5by6
+echo 5Yi25Yi35paw57yT5a2YDQogICAgcmVtIGh0dHBzOi8vZmlsZXMubS5kYW9jbG91ZC5pby93d3cu
+echo Y2xvdWRmbGFyZS5jb20vY2RuLWNnaS90cmFjZT9hPTENCiAgICByZW0gaHR0cHM6Ly9maWxlcy5t
+echo LmRhb2Nsb3VkLmlvL3d3dy5jbG91ZGZsYXJlLmNvbS9jZG4tY2dpL3RyYWNlP2I9Mg0KICAgIHJl
+echo bSDkuZ/lsLHml6Dms5XnlKggaHR0cHM6Ly93d3cuY3lnd2luLmNvbS9zZXR1cC14ODZfNjQuZXhl
+echo P3h4eD0yMDI1MDEwMSDlvLrliLbmr4/lpKnliLfmlrDnvJPlrZgNCg0KICAgIHJlbSDkuIvovb0g
+echo Q3lnd2luDQogICAgaWYgbm90IGV4aXN0IHNldHVwLSFDeWd3aW5BcmNoIS5leGUgKA0KICAgICAg
+echo ICBjYWxsIDpkb3dubG9hZCBodHRwOi8vd3d3LmN5Z3dpbi5jb20vc2V0dXAtIUN5Z3dpbkFyY2gh
+echo LmV4ZSAlfmRwMHNldHVwLSFDeWd3aW5BcmNoIS5leGUgfHwgZ290byA6ZG93bmxvYWRfZmFpbGVk
+echo DQogICAgKQ0KDQogICAgcmVtIOWwkeS6jiAxTSDop4bkuLrml6DmlYgNCiAgICByZW0g5pyJ55qE
+echo IElQIOiiq+WumOe9keaLiem7ke+8jOaXoOazleS4i+i9vSBleGXvvIzkuIvovb3lvpfliLAgaHRt
+echo bA0KICAgIGZvciAlJUEgaW4gKHNldHVwLSFDeWd3aW5BcmNoIS5leGUpIGRvIGlmICUlfnpBIExT
+echo UyAxMDQ4NTc2ICgNCiAgICAgICAgZWNobyBJbnZhbGlkIENneXdpbiBpbnN0YWxsZXINCiAgICAg
+echo ICAgZGVsIHNldHVwLSFDeWd3aW5BcmNoIS5leGUNCiAgICAgICAgZXhpdCAvYiAxDQogICAgKQ0K
+echo DQogICAgcmVtIOWuieijhSBDeWd3aW4NCiAgICBzZXQgc2l0ZT0hbWlycm9yISFkaXIhDQogICAg
+echo c3RhcnQgL3dhaXQgc2V0dXAtIUN5Z3dpbkFyY2ghLmV4ZSBeDQogICAgICAgIC0tYWxsb3ctdW5z
+echo dXBwb3J0ZWQtd2luZG93cyBeDQogICAgICAgIC0tcXVpZXQtbW9kZSBeDQogICAgICAgIC0tb25s
+echo eS1zaXRlIF4NCiAgICAgICAgLS1zaXRlICFzaXRlISBeDQogICAgICAgIC0tcm9vdCAlU3lzdGVt
+echo RHJpdmUlXGN5Z3dpbiBeDQogICAgICAgIC0tbG9jYWwtcGFja2FnZS1kaXIgJX5kcDBjeWd3aW4t
+echo bG9jYWwtcGFja2FnZS1kaXIgXg0KICAgICAgICAtLXBhY2thZ2VzICVwa2dzJQ0KDQogICAgcmVt
+echo IOajgOafpSBDeWd3aW4g5piv5ZCm5oiQ5Yqf5a6J6KOFDQogICAgaWYgZXJyb3JsZXZlbCAxIGdv
+echo dG8gOmluc3RhbGxfY3lnd2luX2ZhaWxlZA0KICAgIGNhbGwgOmNoZWNrX2N5Z3dpbl9pbnN0YWxs
+echo ZWQgfHwgZ290byA6aW5zdGFsbF9jeWd3aW5fZmFpbGVkDQopDQoNCnJlbSDlnKhj55uY5qC555uu
+echo 5b2V5LiL5omn6KGMIGN5Z3BhdGggLXVhIC4g5Lya5b6X5YiwIC9jeWdkcml2ZS9j77yM5Zug5q2k
+echo 5pyr5bC+6KaB5pyJIC8NCmZvciAvZiAlJWEgaW4gKCclU3lzdGVtRHJpdmUlXGN5Z3dpblxiaW5c
+echo Y3lncGF0aCAtdWEgLi8nKSBkbyBzZXQgdGhpc2Rpcj0lJWENCg0KcmVtIOS4i+i9vSByZWluc3Rh
+echo bGwuc2gNCmlmIG5vdCBleGlzdCByZWluc3RhbGwuc2ggKA0KICAgIGNhbGwgOmRvd25sb2FkX3dp
+echo dGhfY3VybCAlY29uZmhvbWUlL3JlaW5zdGFsbC5zaCAldGhpc2RpciVyZWluc3RhbGwuc2ggfHwg
+echo Z290byA6ZG93bmxvYWRfZmFpbGVkDQogICAgY2FsbCA6Y2htb2QgYSt4ICV0aGlzZGlyJXJlaW5z
+echo dGFsbC5zaA0KKQ0KDQpyZW0gJSog5peg5rOV5aSE55CGIC0taXNvIGh0dHBzOi8veC5jb20vP3l5
+echo eT0xMjMNCnJlbSDkuLrmr4/kuKrlj4LmlbDmt7vliqDlvJXlj7fvvIzkvb/lj4LmlbDmraPnoa7k
+echo vKDpgJLliLAgYmFzaA0KcmVtIGZvciAlJWEgaW4gKCUqKSBkbyAoDQpyZW0gICAgIHNldCAicGFy
+echo YW09IXBhcmFtISAiJSV+YSIiDQpyZW0gKQ0KDQpyZW0g6L2s5oiQIHVuaXgg5qC85byP77yM6YG/
+echo 5YWN55So5oi355SoIHdpbmRvd3Mg6K6w5LqL5pys57yW6L6R5ZCO5o2i6KGM56ym5LiN5a+5DQol
+echo U3lzdGVtRHJpdmUlXGN5Z3dpblxiaW5cZG9zMnVuaXggLXEgJyV0aGlzZGlyJXJlaW5zdGFsbC5z
+echo aCcNCg0KcmVtIOeUqCBiYXNoIOi/kOihjA0KcmVtICVTeXN0ZW1Ecml2ZSVcY3lnd2luXGJpblxi
+echo YXNoIC1sICV0aGlzZGlyJXJlaW5zdGFsbC5zaCAlKiDov5DooYzlkI7kvJrmuIXlsY8NCnJlbSDl
+echo m6DmraTkuI3og73nlKggLWwNCnJlbSDov5nlsLHpnIDopoHlnKggcmVpbnN0YWxsLnNoIOmHjOi/
+echo kOihjCBzb3VyY2UgL2V0Yy9wcm9maWxlDQpyZW0g5oiW6ICF5re75YqgIGV4cG9ydCBQQVRIPS91
+echo c3IvbG9jYWwvc2JpbjovdXNyL2xvY2FsL2JpbjovdXNyL3NiaW46L3Vzci9iaW46L3NiaW46L2Jp
+echo bjokUEFUSA0KJVN5c3RlbURyaXZlJVxjeWd3aW5cYmluXGJhc2ggJXRoaXNkaXIlcmVpbnN0YWxs
+echo LnNoICUqDQpleGl0IC9iDQoNCnJlbSBiaXRzIOimgeaxguaciSBDb250ZW50LUxlbmd0aCDmiY3o
+echo g73kuIvovb0NCnJlbSBjbG91ZGZsYXJlIOeahCBjZG4tY2dpL3RyYWNlIOayoeaciSBDb250ZW50
+echo LUxlbmd0aA0KcmVtIOaNruivtOWmguaenOe9kee7nOiuvuS4uuKAnOaMiea1gemHj+iuoei0ueKA
+echo nSBiaXRzIOS5n+aXoOazleS4i+i9vQ0KcmVtIGh0dHBzOi8vbGVhcm4ubWljcm9zb2Z0LmNvbS9l
+echo bi11cy93aW5kb3dzL3dpbjMyL2JpdHMvaHR0cC1yZXF1aXJlbWVudHMtZm9yLWJpdHMtZG93bmxv
+echo YWRzDQpyZW0gYml0c2FkbWluIC90cmFuc2ZlciAiJX4zIiAvcHJpb3JpdHkgZm9yZWdyb3VuZCAl
+echo fjEgJX4yDQoNCjpkb3dubG9hZA0KcmVtIGNlcnR1dGlsIOS8muiiqyB3aW5kb3dzIERlZmVuZGVy
+echo IOaKpeavkg0KcmVtIHdpbmRvd3Mgc2VydmVyIDIwMTkg6KaB55So56ys5LqM5p2hIGNlcnR1dGls
+echo IOWRveS7pA0KZWNobyBEb3dubG9hZGluZzogJX4xICV+Mg0KZGVsIC9xICIlfjIiIDI+bnVsDQpp
+echo ZiBleGlzdCAiJX4yIiAoZWNobyBDYW5ub3QgZGVsZXRlICV+MiAmIGV4aXQgL2IgMSkNCg0KY2Vy
+echo dHV0aWwgLXVybGNhY2hlIC1mIC1zcGxpdCAiJX4xIiAiJX4yIiA+bnVsDQppZiBub3QgZXJyb3Js
+echo ZXZlbCAxIGlmIGV4aXN0ICIlfjIiIGV4aXQgL2IgMA0KDQpjZXJ0dXRpbCAtdXJsY2FjaGUgLXNw
+echo bGl0ICIlfjEiICIlfjIiID5udWwNCmlmIG5vdCBlcnJvcmxldmVsIDEgaWYgZXhpc3QgIiV+MiIg
+echo ZXhpdCAvYiAwDQoNCnJlbSDkuIvovb3lpLHotKXml7bliKDpmaTmlofku7bvvIzpmLLmraLkuIvo
+echo vb3kuobkuIDpg6jliIblr7zoh7TkuIvmrKHov5DooYzml7bot7Pov4fkuobkuIvovb0NCmRlbCAv
+echo cSAiJX4yIiAyPm51bA0KZXhpdCAvYiAxDQoNCjpkb3dubG9hZF93aXRoX2N1cmwNCnJlbSDliqAg
+echo LS1pbnNlY3VyZSDpmLLmraLku6XkuIvplJnor68NCnJlbSBjdXJsOiAoNzcpIGVycm9yIHNldHRp
+echo bmcgY2VydGlmaWNhdGUgdmVyaWZ5IGxvY2F0aW9uczoNCnJlbSAgIENBZmlsZTogL2V0Yy9zc2wv
+echo Y2VydHMvY2EtY2VydGlmaWNhdGVzLmNydA0KcmVtICAgQ0FwYXRoOiBub25lDQplY2hvIERvd25s
+echo b2FkOiAlfjEgJX4yDQolU3lzdGVtRHJpdmUlXGN5Z3dpblxiaW5cY3VybCAtTCAtLWluc2VjdXJl
+echo ICIlfjEiIC1vICIlfjIiDQpleGl0IC9iDQoNCjpjaG1vZA0KJVN5c3RlbURyaXZlJVxjeWd3aW5c
+echo YmluXGNobW9kICIlfjEiICIlfjIiDQpleGl0IC9iDQoNCjpkb3dubG9hZF9mYWlsZWQNCmVjaG8g
+echo RG93bmxvYWQgZmFpbGVkLg0KZXhpdCAvYiAxDQoNCjppbnN0YWxsX2N5Z3dpbl9mYWlsZWQNCmVj
+echo aG8gRmFpbGVkIHRvIGluc3RhbGwgQ3lnd2luLg0KZXhpdCAvYiAxDQoNCjpjaGVja19jeWd3aW5f
+echo aW5zdGFsbGVkDQpzZXQgImNtZHNfc3BhY2U9JWNtZHM6LD0gJSINCmZvciAlJWMgaW4gKCVjbWRz
+echo X3NwYWNlJSkgZG8gKA0KICAgIGlmIG5vdCBleGlzdCAiJVN5c3RlbURyaXZlJVxjeWd3aW5cYmlu
+echo XCUlYyIgaWYgbm90IGV4aXN0ICIlU3lzdGVtRHJpdmUlXGN5Z3dpblxiaW5cJSVjLmV4ZSIgKA0K
+echo ICAgICAgICBleGl0IC9iIDENCiAgICApDQopDQpleGl0IC9iIDANCg==
+echo -----END CERTIFICATE-----
+) > "%WORK_DIR%\reinstall.b64"
+certutil -decode "%WORK_DIR%\reinstall.b64" "%WORK_DIR%\reinstall.bat" >nul 2>&1
+del /f /q "%WORK_DIR%\reinstall.b64" >nul 2>&1
+exit /b 0
