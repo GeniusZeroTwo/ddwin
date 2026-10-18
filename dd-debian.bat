@@ -24,11 +24,7 @@ rem ----------------- 检查并提升管理员权限 -----------------
 net session >nul 2>&1
 if %errorlevel% neq 0 (
     echo [提示] 正在请求系统管理员权限以配置底层引导...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = 3072; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {}; try { (New-Object System.Net.WebClient).DownloadFile('%SRC1%', '%WORK_DIR%
-einstall.bat') } catch { (New-Object System.Net.WebClient).DownloadFile('%SRC2%', '%WORK_DIR%
-einstall.bat') }" >nul 2>&1
-einstall.bat\') } catch { (New-Object System.Net.WebClient).DownloadFile(\'%SRC2%\', \'%WORK_DIR%
-einstall.bat\') }" >nul 2>&1
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process cmd -ArgumentList '/k \"\"%~f0\" %*\"' -Verb RunAs" 2>nul
     if !errorlevel! neq 0 (
         echo.
         echo ================================================================
@@ -92,7 +88,7 @@ echo.
 echo 选项说明:
 echo   -o, --os ^<系统^>           目标操作系统 (可选: debian, ubuntu, 默认: debian)
 echo   -v, --version ^<版本^>       系统版本:
-echo                                Debian: 12 (默认), 13 [Trixie], 11 [Bullseye]
+echo                                Debian: 12 (默认), 13 (Trixie), 11 (Bullseye)
 echo                                Ubuntu: 24.04 (或 24), 26.04 (或 26), 22.04
 echo   -p, --password ^<密码^>      Linux root 登录密码 (留空则随机生成)
 echo   -P, --port ^<端口^>          SSH 服务连接端口 (默认: 22)
@@ -150,11 +146,7 @@ if /i "!TARGET_OS!"=="ubuntu" (
 
 rem ----------------- 检测国内网络环境 -----------------
 echo [1/5] 正在检测当前网络环境与连接质量...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = 3072; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {}; try { (New-Object System.Net.WebClient).DownloadFile('%SRC1%', '%WORK_DIR%
-einstall.bat') } catch { (New-Object System.Net.WebClient).DownloadFile('%SRC2%', '%WORK_DIR%
-einstall.bat') }" >nul 2>&1
-einstall.bat\') } catch { (New-Object System.Net.WebClient).DownloadFile(\'%SRC2%\', \'%WORK_DIR%
-einstall.bat\') }" >nul 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; try { $r = (Invoke-WebRequest -Uri 'https://cip.cc' -TimeoutSec 3 -UseBasicParsing).Content; if ($r -match '中国') { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
 if %errorlevel% equ 0 (
     set "IS_CHINA=true"
     echo [INFO] 检测到当前服务器位于中国大陆节点，已自动切换国内极速镜像源！
@@ -193,11 +185,7 @@ echo 说明: 重装脚本需要注入底层引导工具，Defender 可能会误�
 set /p disable_def="是否一键关闭实时防护？(Y/N) [默认: Y]: "
 if /i "!disable_def!"=="" set "disable_def=Y"
 if /i "!disable_def!"=="Y" (
-powershell -NoProfile -ExecutionPolicy Bypass -Command "='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = 3072; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {}; try { (New-Object System.Net.WebClient).DownloadFile('%SRC1%', '%WORK_DIR%
-einstall.bat') } catch { (New-Object System.Net.WebClient).DownloadFile('%SRC2%', '%WORK_DIR%
-einstall.bat') }" >nul 2>&1
-einstall.bat\') } catch { (New-Object System.Net.WebClient).DownloadFile(\'%SRC2%\', \'%WORK_DIR%
-einstall.bat\') }" >nul 2>&1
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-MpPreference -DisableRealtimeMonitoring $true" >nul 2>&1
     echo [INFO] 已尝试关闭 Windows Defender 实时监控。
 )
 

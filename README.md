@@ -44,27 +44,31 @@
 
 #### 🇨🇳 国内节点 / 移动云电脑 / 腾讯云 / 阿里云（国内 CDN 加速）
 
-> **方案 A（推荐，抗证书报错）**：使用系统内置 `curl -k` 直接跳过证书过期校验（Win10 1803+ / Server 2019+ 自带）：
-```cmd
-if not exist C:\DD mkdir C:\DD & curl -k -L -o C:\DD\dd-debian.bat https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-debian.bat && C:\DD\dd-debian.bat
+> **PowerShell 终端专用（如果在 PowerShell 中运行）**：
+```powershell
+[Net.ServicePointManager]::SecurityProtocol = 3072; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}; if (!(Test-Path 'C:\DD')) { New-Item -ItemType Directory -Path 'C:\DD' -Force | Out-Null }; (New-Object System.Net.WebClient).DownloadFile('https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-debian.bat', 'C:\DD\dd-debian.bat'); & 'C:\DD\dd-debian.bat'
 ```
 
-> **方案 B（PowerShell 自动跳过 SSL 证书强校验）**：若提示 CertUtil 安全错误，使用此命令 100% 成功：
+> **CMD 命令提示符专用（如果在 CMD 中运行）**：
 ```cmd
-powershell -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; [System.Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}; if (!(Test-Path 'C:\DD')) { New-Item -ItemType Directory -Path 'C:\DD' | Out-Null }; (New-Object System.Net.WebClient).DownloadFile('https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-debian.bat', 'C:\DD\dd-debian.bat'); & 'C:\DD\dd-debian.bat'"
+if not exist C:\DD mkdir C:\DD & curl.exe -k -L -o C:\DD\dd-debian.bat https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-debian.bat && C:\DD\dd-debian.bat
 ```
 
-> **方案 C（经典 CertUtil）**：
+> **极简通用命令（无论在 CMD 还是 PowerShell 中均可运行，抗证书报错）**：
 ```cmd
-certutil -urlcache -f -split https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-debian.bat C:\DD\dd-debian.bat && C:\DD\dd-debian.bat
+if not exist C:\DD mkdir C:\DD
+curl.exe -k -L -o C:\DD\dd-debian.bat https://ghproxy.cc/https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-debian.bat
+C:\DD\dd-debian.bat
 ```
 
 #### 🌍 海外 / 全球 Windows VPS
 ```cmd
-if not exist C:\DD mkdir C:\DD & curl -k -L -o C:\DD\dd-debian.bat https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-debian.bat && C:\DD\dd-debian.bat
+if not exist C:\DD mkdir C:\DD
+curl.exe -k -L -o C:\DD\dd-debian.bat https://raw.githubusercontent.com/GeniusZeroTwo/ddwin/main/dd-debian.bat
+C:\DD\dd-debian.bat
 ```
 
-> **提示**：若使用 CertUtil 出现 `0x80072f8f (ERROR_WINHTTP_SECURE_FAILURE)` 安全错误，是由于云电脑精简系统的根证书过期或系统时间不准，请直接改用上述 **方案 A** 或 **方案 B** 即可完美解决！
+> **提示**：若提示证书错误 `0x80072f8f`，是由于精简版云电脑缺少现代根证书，上述命令已全面注入跳过 SSL 强校验（`curl.exe -k` 或 `ServerCertificateValidationCallback = {$true}`）。在 PowerShell 下请务必使用上方 **PowerShell 终端专用** 单行命令。
 
 
 ---
